@@ -1,0 +1,5 @@
+cd /path/to/code/dir
+find . -type f \( -name "*.c" -o -name "*.h" \) > filelist
+mkdir .tsj
+ctags -L filelist -o .tsj/tags
+gtags -i -f filelist

@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>配置管理</title>
+    <script src="/static/vue.global.js"></script>
+    <link rel="stylesheet" href="/static/element-plus.css" />
+    <script src="/static/element-plus.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f5f5f5;
+        }
+        .app-container {
+            height: 100vh;
+        }
+        .sidebar {
+            background-color: #545c64;
+            color: white;
+            height: 100%;
+        }
+        .main-content {
+            padding: 20px;
+            height: 100%;
+            overflow-y: auto;
+        }
+        .config-card {
+            margin-bottom: 20px;
+        }
+        .config-actions {
+            margin-top: 15px;
+            display: flex;
+            gap: 10px;
+        }
+        .default-badge {
+            margin-left: 10px;
+        }
+        .result-item {
+            margin-bottom: 15px;
+            padding: 15px;
+            border: 1px solid #ebeef5;
+            border-radius: 4px;
+            background-color: #fff;
+        }
+        .result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .test-form {
+            max-width: 800px;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <el-container class="app-container">
+            <el-aside width="200px" class="sidebar">
+                <el-menu
+                    :default-active="activeType"
+                    @select="handleTypeChange"
+                    background-color="#545c64"
+                    text-color="#fff"
+                    active-text-color="#ffd04b">
+                    <el-menu-item index="llm">
+                        <el-icon><setting /></el-icon>
+                        <span>LLM配置</span>
+                    </el-menu-item>
+                    <el-menu-item index="code_server">
+                        <el-icon><connection /></el-icon>
+                        <span>CodeServer配置</span>
+                    </el-menu-item>
+                    <el-menu-item index="result">
+                        <el-icon><document /></el-icon>
+                        <span>结果管理</span>
+                    </el-menu-item>
+                    <el-menu-item index="test_llm">
+                        <el-icon><cpu /></el-icon>
+                        <span>测试LLM</span>
+                    </el-menu-item>
+                </el-menu>
+            </el-aside>
+            
+            <el-main class="main-content">
+                <div v-if="loading" v-loading="loading" style="height: 200px;"></div>
+                
+                <div v-else>
+                    <!-- LLM配置 -->
+                    <div v-if="activeType === 'llm'">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                            <h2>LLM配置管理</h2>
+                            <el-button type="primary" @click="showAddLLMDialog">
+                                <el-icon><plus /></el-icon>添加LLM配置
+                            </el-button>
+                        </div>
+                        
+                        <el-card v-for="config in configs.llm_configs" :key="config.name" class="config-card">
+                            <template #header>
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <span>{{ config.name }}</span>
+                                </div>
+                            </template>
+                            
+                            <el-form label-width="120px">
+                                <el-form-item label="API Key">
+                                    <el-input v-model="config.api_key" type="password" show-password placeholder="请输入API Key" />
+                                </el-form-item>
+                                <el-form-item label="Base URL">
+                                    <el-input v-model="config.base_url" placeholder="请输入Base URL" />
+                                </el-form-item>
+                                <el-form-item label="Model">
+                                    <el-input v-model="config.model" placeholder="请输入Model名称" />
+                                </el-form-item>
+                            </el-form>
+                            
+                            <div class="config-actions">
+                                <el-button type="primary" @click="saveLLMConfig(config)">保存</el-button>
+                                <el-button type="danger" @click="deleteConfig('llm', config.name)">
+                                    删除
+                                </el-button>
+                            </div>
+                        </el-card>
+                    </div>
+                    
+                    <!-- CodeServer配置 -->
+                    <div v-if="activeType === 'code_server'">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                            <h2>CodeServer配置管理</h2>
+                            <el-button type="primary" @click="showAddCodeServerDialog">
+                                <el-icon><plus /></el-icon>添加CodeServer配置
+                            </el-button>
+                        </div>
+                        
+                        <el-card v-for="config in configs.code_servers" :key="config.name" class="config-card">
+                            <template #header>
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <span>{{ config.name }}</span>
+                                </div>
+                            </template>
+                            
+                            <el-form label-width="120px">
+                                <el-form-item label="URL">
+                                    <el-input v-model="config.url" placeholder="请输入CodeServer URL" />
+                                </el-form-item>
+                            </el-form>
+                            
+                            <div class="config-actions">
+                                <el-button type="primary" @click="saveCodeServerConfig(config)">保存</el-button>
+                                <el-button type="danger" @click="deleteConfig('code_server', config.name)">
+                                    删除
+                                </el-button>
+                            </div>
+                        </el-card>
+                    </div>
+                    
+                    <!-- 结果管理 -->
+                    <div v-if="activeType === 'result'">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                            <h2>结果管理</h2>
+                            <div>
+                                <el-button type="primary" @click="refreshResults">
+                                    <el-icon><refresh /></el-icon>刷新
+                                </el-button>
+                            </div>
+                        </div>
+                        
+                        <div v-if="results.length === 0" style="text-align: center; padding: 40px; color: #999;">
+                            暂无结果数据
+                        </div>
+                        
+                        <div v-else>
+                            <div v-for="result in results" :key="result" class="result-item">
+                                <div class="result-header">
+                                    <div style="display: flex; align-items: center; gap: 10px;">
+                                        <strong>{{ result }}</strong>
+                                        <el-tag 
+                                            :type="taskStatuses[result] === true ? 'warning' : 'success'" 
+                                            size="small"
+                                            :loading="taskStatuses[result] === undefined">
+                                            {{ taskStatuses[result] === true ? 'running' : (taskStatuses[result] === false ? 'finished' : 'checking...') }}
+                                        </el-tag>
+                                    </div>
+                                    <div>
+                                        <a :href="`/api/export_result?file=${result}`" download class="el-button el-button--small el-button--primary" style="text-decoration: none; color: white;">
+                                            <el-icon><download /></el-icon>导出
+                                        </a>
+                                        <el-button size="small" type="danger" @click="deleteResult(result)">
+                                            <el-icon><delete /></el-icon>删除
+                                        </el-button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 测试LLM -->
+                    <div v-if="activeType === 'test_llm'">
+                        <h2>测试LLM</h2>
+                        <el-form :model="testForm" label-width="120px" class="test-form">
+                            <el-form-item label="任务ID">
+                                <el-input v-model="testForm.id" placeholder="请输入任务ID（可选，留空自动生成）" />
+                            </el-form-item>
+                            <el-form-item label="System Prompt">
+                                <el-input v-model="testForm.system_prompt" type="textarea" :rows="3" placeholder="请输入系统提示词" />
+                            </el-form-item>
+                            <el-form-item label="User Prompt">
+                                <el-input v-model="testForm.user_prompt" type="textarea" :rows="4" placeholder="请输入用户提示词" />
+                            </el-form-item>
+                            <el-form-item label="Code Server">
+                                <el-select v-model="testForm.code_server_name" placeholder="请选择Code Server配置">
+                                    <el-option 
+                                        v-for="config in configs.code_servers" 
+                                        :key="config.name" 
+                                        :label="config.name" 
+                                        :value="config.name" 
+                                    />
+                                </el-select>
+                            </el-form-item>
+                            <el-form-item label="LLM配置">
+                                <el-select v-model="testForm.llm_config_name" placeholder="请选择LLM配置">
+                                    <el-option 
+                                        v-for="config in configs.llm_configs" 
+                                        :key="config.name" 
+                                        :label="config.name" 
+                                        :value="config.name" 
+                                    />
+                                </el-select>
+                            </el-form-item>
+                            <el-form-item>
+                                <el-button type="primary" @click="submitTestTask" :loading="submitting">
+                                    <el-icon><position /></el-icon>提交任务
+                                </el-button>
+                                <el-button @click="resetTestForm">重置</el-button>
+                            </el-form-item>
+                        </el-form>
+                        
+                        <div v-if="testResult" style="margin-top: 20px;">
+                            <h3>提交结果：</h3>
+                            <el-card>
+                                <pre>{{ JSON.stringify(testResult, null, 2) }}</pre>
+                            </el-card>
+                        </div>
+                    </div>
+                </div>
+            </el-main>
+        </el-container>
+        
+        <!-- 添加LLM配置对话框 -->
+        <el-dialog v-model="addLLMDialogVisible" title="添加LLM配置" width="500px">
+            <el-form :model="newLLMConfig" label-width="120px">
+                <el-form-item label="名称">
+                    <el-input v-model="newLLMConfig.name" placeholder="请输入配置名称" />
+                </el-form-item>
+                <el-form-item label="API Key">
+                    <el-input v-model="newLLMConfig.api_key" type="password" show-password placeholder="请输入API Key" />
+                </el-form-item>
+                <el-form-item label="Base URL">
+                    <el-input v-model="newLLMConfig.base_url" placeholder="请输入Base URL" />
+                </el-form-item>
+                <el-form-item label="Model">
+                    <el-input v-model="newLLMConfig.model" placeholder="请输入Model名称" />
+                </el-form-item>
+            </el-form>
+            <template #footer>
+                <el-button @click="addLLMDialogVisible = false">取消</el-button>
+                <el-button type="primary" @click="addLLMConfig">确定</el-button>
+            </template>
+        </el-dialog>
+        
+        <!-- 添加CodeServer配置对话框 -->
+        <el-dialog v-model="addCodeServerDialogVisible" title="添加CodeServer配置" width="500px">
+            <el-form :model="newCodeServerConfig" label-width="120px">
+                <el-form-item label="名称">
+                    <el-input v-model="newCodeServerConfig.name" placeholder="请输入配置名称" />
+                </el-form-item>
+                <el-form-item label="URL">
+                    <el-input v-model="newCodeServerConfig.url" placeholder="请输入CodeServer URL" />
+                </el-form-item>
+            </el-form>
+            <template #footer>
+                <el-button @click="addCodeServerDialogVisible = false">取消</el-button>
+                <el-button type="primary" @click="addCodeServerConfig">确定</el-button>
+            </template>
+        </el-dialog>
+    </div>
+
+    <script>
+        const { createApp, ref } = Vue;
+        const { ElMessage, ElMessageBox } = ElementPlus;
+
+        createApp({
+            setup() {
+                const activeType = ref('llm');
+                const loading = ref(false);
+                const configs = ref({
+                    llm_configs: [],
+                    code_servers: [],
+                    default_llm: '',
+                    default_code_server: ''
+                });
+                
+                const results = ref([]);
+                const testForm = ref({
+                    id: '',
+                    system_prompt: '',
+                    user_prompt: '',
+                    code_server_name: '',
+                    llm_config_name: ''
+                });
+                const testResult = ref(null);
+                const submitting = ref(false);
+                
+                const addLLMDialogVisible = ref(false);
+                const addCodeServerDialogVisible = ref(false);
+                
+                const newLLMConfig = ref({
+                    name: '',
+                    api_key: '',
+                    base_url: '',
+                    model: ''
+                });
+                
+                const newCodeServerConfig = ref({
+                    name: '',
+                    url: ''
+                });
+
+                // 获取配置
+                const fetchConfigs = async () => {
+                    loading.value = true;
+                    try {
+                        const response = await fetch('/get_config');
+                        if (!response.ok) {
+                            throw new Error('获取配置失败');
+                        }
+                        const data = await response.json();
+                        configs.value = data;
+                    } catch (error) {
+                        ElMessage.error('获取配置失败: ' + error.message);
+                    } finally {
+                        loading.value = false;
+                    }
+                };
+
+                // 获取结果列表
+                const fetchResults = async () => {
+                    loading.value = true;
+                    try {
+                        const response = await fetch('/api/result_list');
+                        if (!response.ok) {
+                            throw new Error('获取结果列表失败');
+                        }
+                        const data = await response.json();
+                        results.value = data.results || [];
+                    } catch (error) {
+                        ElMessage.error('获取结果列表失败: ' + error.message);
+                    } finally {
+                        loading.value = false;
+                    }
+                };
+
+                const taskStatuses = ref({});
+                
+                // 检查任务状态
+                const checkTaskStatus = async (taskId) => {
+                    try {
+                        // 移除.json扩展名来调用API
+                        const apiTaskId = taskId.replace('.json', '');
+                        const response = await fetch(`/api/task_status?id=${apiTaskId}`);
+                        if (!response.ok) {
+                            throw new Error('检查任务状态失败');
+                        }
+                        const data = await response.json();
+                        // 使用完整的文件名作为key存储状态
+                        taskStatuses.value[taskId] = data.exists;
+                    } catch (error) {
+                        console.error('检查任务状态失败:', error);
+                        taskStatuses.value[taskId] = false;
+                    }
+                };
+                
+                // 检查所有任务状态
+                const checkAllTaskStatuses = async () => {
+                    for (const result of results.value) {
+                        await checkTaskStatus(result); // 使用完整的文件名作为taskId
+                    }
+                };
+                
+                // 刷新结果
+                const refreshResults = async () => {
+                    await fetchResults();
+                    await checkAllTaskStatuses();
+                };
+
+                // 导出单个结果
+                const exportResult = async (result) => {
+                    try {
+                        const response = await fetch(`/api/export_result?file=${result}`);
+                        
+                        if (!response.ok) {
+                            throw new Error('导出失败');
+                        }
+                        
+                        const blob = await response.blob();
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `${result}`;
+                        document.body.appendChild(a);
+                        a.click();
+                        window.URL.revokeObjectURL(url);
+                        document.body.removeChild(a);
+                        
+                        ElMessage.success('导出成功');
+                    } catch (error) {
+                        ElMessage.error('导出失败: ' + error.message);
+                    }
+                };
+
+
+                // 删除结果
+                const deleteResult = async (result) => {
+                    try {
+                        await ElMessageBox.confirm(
+                            `确定要删除结果 "${result.id}" 吗？`,
+                            '确认删除',
+                            {
+                                confirmButtonText: '确定',
+                                cancelButtonText: '取消',
+                                type: 'warning',
+                            }
+                        );
+                        
+                        const response = await fetch('/api/delete_result', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({ id: result.id })
+                        });
+                        
+                        if (!response.ok) {
+                            throw new Error('删除失败');
+                        }
+                        
+                        ElMessage.success('删除成功');
+                        await fetchResults();
+                    } catch (error) {
+                        if (error !== 'cancel') {
+                            ElMessage.error('删除失败: ' + error.message);
+                        }
+                    }
+                };
+
+                // 提交测试任务
+                const submitTestTask = async () => {
+                    if (!testForm.value.system_prompt.trim()) {
+                        ElMessage.error('请输入系统提示词');
+                        return;
+                    }
+                    if (!testForm.value.user_prompt.trim()) {
+                        ElMessage.error('请输入用户提示词');
+                        return;
+                    }
+                    if (!testForm.value.code_server_name) {
+                        ElMessage.error('请选择Code Server配置');
+                        return;
+                    }
+                    if (!testForm.value.llm_config_name) {
+                        ElMessage.error('请选择LLM配置');
+                        return;
+                    }
+                    
+                    submitting.value = true;
+                    try {
+                        const taskData = {
+                            id: testForm.value.id || undefined,
+                            system_prompt: testForm.value.system_prompt,
+                            user_prompt: testForm.value.user_prompt,
+                            code_server_name: testForm.value.code_server_name,
+                            llm_config_name: testForm.value.llm_config_name
+                        };
+                        
+                        const response = await fetch('/api/submit_task', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify(taskData)
+                        });
+                        
+                        if (!response.ok) {
+                            const errorData = await response.json();
+                            throw new Error(errorData.error || '提交失败');
+                        }
+                        
+                        const result = await response.json();
+                        testResult.value = result;
+                        ElMessage.success('任务提交成功，任务ID: ' + result.task_id);
+                    } catch (error) {
+                        ElMessage.error('提交任务失败: ' + error.message);
+                    } finally {
+                        submitting.value = false;
+                    }
+                };
+
+                // 重置测试表单
+                const resetTestForm = () => {
+                    testForm.value = {
+                        id: '',
+                        system_prompt: '',
+                        user_prompt: '',
+                        code_server_name: '',
+                        llm_config_name: ''
+                    };
+                    testResult.value = null;
+                };
+
+                // 保存LLM配置
+                const saveLLMConfig = async (config) => {
+                    try {
+                        const response = await fetch('/api/update_llm', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify(config)
+                        });
+                        
+                        if (!response.ok) {
+                            const errorData = await response.json();
+                            throw new Error(errorData.error || '保存失败');
+                        }
+                        
+                        ElMessage.success('LLM配置保存成功');
+                        await fetchConfigs();
+                    } catch (error) {
+                        ElMessage.error('保存LLM配置失败: ' + error.message);
+                    }
+                };
+
+                // 保存CodeServer配置
+                const saveCodeServerConfig = async (config) => {
+                    try {
+                        const response = await fetch('/api/update_code_server', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify(config)
+                        });
+                        
+                        if (!response.ok) {
+                            const errorData = await response.json();
+                            throw new Error(errorData.error || '保存失败');
+                        }
+                        
+                        ElMessage.success('CodeServer配置保存成功');
+                        await fetchConfigs();
+                    } catch (error) {
+                        ElMessage.error('保存CodeServer配置失败: ' + error.message);
+                    }
+                };
+
+                // 删除配置
+                const deleteConfig = async (type, name) => {
+                    try {
+                        await ElMessageBox.confirm(
+                            `确定要删除配置 "${name}" 吗？`,
+                            '确认删除',
+                            {
+                                confirmButtonText: '确定',
+                                cancelButtonText: '取消',
+                                type: 'warning',
+                            }
+                        );
+                        
+                        const response = await fetch('/api/delete_config', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({ type, name })
+                        });
+                        
+                        if (!response.ok) {
+                            const errorData = await response.json();
+                            throw new Error(errorData.error || '删除失败');
+                        }
+                        
+                        ElMessage.success('删除配置成功');
+                        await fetchConfigs();
+                    } catch (error) {
+                        if (error !== 'cancel') {
+                            ElMessage.error('删除配置失败: ' + error.message);
+                        }
+                    }
+                };
+
+                // 添加LLM配置
+                const addLLMConfig = async () => {
+                    if (!newLLMConfig.value.name.trim()) {
+                        ElMessage.error('请输入配置名称');
+                        return;
+                    }
+                    
+                    try {
+                        const response = await fetch('/api/update_llm', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify(newLLMConfig.value)
+                        });
+                        
+                        if (!response.ok) {
+                            const errorData = await response.json();
+                            throw new Error(errorData.error || '添加失败');
+                        }
+                        
+                        ElMessage.success('添加LLM配置成功');
+                        addLLMDialogVisible.value = false;
+                        newLLMConfig.value = { name: '', api_key: '', base_url: '', model: '' };
+                        await fetchConfigs();
+                    } catch (error) {
+                        ElMessage.error('添加LLM配置失败: ' + error.message);
+                    }
+                };
+
+                // 添加CodeServer配置
+                const addCodeServerConfig = async () => {
+                    if (!newCodeServerConfig.value.name.trim()) {
+                        ElMessage.error('请输入配置名称');
+                        return;
+                    }
+                    
+                    try {
+                        const response = await fetch('/api/update_code_server', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify(newCodeServerConfig.value)
+                        });
+                        
+                        if (!response.ok) {
+                            const errorData = await response.json();
+                            throw new Error(errorData.error || '添加失败');
+                        }
+                        
+                        ElMessage.success('添加CodeServer配置成功');
+                        addCodeServerDialogVisible.value = false;
+                        newCodeServerConfig.value = { name: '', url: '' };
+                        await fetchConfigs();
+                    } catch (error) {
+                        ElMessage.error('添加CodeServer配置失败: ' + error.message);
+                    }
+                };
+
+                // 显示添加LLM配置对话框
+                const showAddLLMDialog = () => {
+                    newLLMConfig.value = { name: '', api_key: '', base_url: '', model: '' };
+                    addLLMDialogVisible.value = true;
+                };
+
+                // 显示添加CodeServer配置对话框
+                const showAddCodeServerDialog = () => {
+                    newCodeServerConfig.value = { name: '', url: '' };
+                    addCodeServerDialogVisible.value = true;
+                };
+
+                // 切换配置类型
+                const handleTypeChange = async (type) => {
+                    activeType.value = type;
+                    if (type === 'result') {
+                        await fetchResults();
+                        await checkAllTaskStatuses();
+                    }
+                };
+
+                // 初始化
+                fetchConfigs();
+
+                return {
+                    activeType,
+                    loading,
+                    configs,
+                    results,
+                    taskStatuses,
+                    testForm,
+                    testResult,
+                    submitting,
+                    addLLMDialogVisible,
+                    addCodeServerDialogVisible,
+                    newLLMConfig,
+                    newCodeServerConfig,
+                    saveLLMConfig,
+                    saveCodeServerConfig,
+                    deleteConfig,
+                    addLLMConfig,
+                    addCodeServerConfig,
+                    showAddLLMDialog,
+                    showAddCodeServerDialog,
+                    handleTypeChange,
+                    refreshResults,
+                    exportResult,
+                    deleteResult,
+                    submitTestTask,
+                    resetTestForm,
+                    checkTaskStatus,
+                    checkAllTaskStatuses
+                };
+            }
+        }).use(ElementPlus).mount('#app');
+    </script>
+</body>
+</html>

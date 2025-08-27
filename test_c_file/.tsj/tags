@@ -1,0 +1,27 @@
+!_TAG_FILE_FORMAT	2	/extended format; --format=1 will not append ;" to lines/
+!_TAG_FILE_SORTED	1	/0=unsorted, 1=sorted, 2=foldcase/
+!_TAG_OUTPUT_EXCMD	mixed	/number, pattern, mixed, or combineV2/
+!_TAG_OUTPUT_FILESEP	slash	/slash or backslash/
+!_TAG_OUTPUT_MODE	u-ctags	/u-ctags or e-ctags/
+!_TAG_PATTERN_LENGTH_LIMIT	96	/0 for no limit/
+!_TAG_PROC_CWD	/home/tsj/code_server/test_c_file/	//
+!_TAG_PROGRAM_AUTHOR	Universal Ctags Team	//
+!_TAG_PROGRAM_NAME	Universal Ctags	/Derived from Exuberant Ctags/
+!_TAG_PROGRAM_URL	https://ctags.io/	/official site/
+!_TAG_PROGRAM_VERSION	5.9.0	//
+LOG_FILE	./test.c	/^#define LOG_FILE /;"	d	file:
+MAX_PASSWORD_LENGTH	./test.c	/^#define MAX_PASSWORD_LENGTH /;"	d	file:
+calculate_checksum	./test.c	/^int calculate_checksum(const char *data) {$/;"	f	typeref:typename:int
+cleanup_resources	./test.c	/^void cleanup_resources() {$/;"	f	typeref:typename:void
+generate_report	./test.c	/^void generate_report() {$/;"	f	typeref:typename:void
+handle_special_case	./test.c	/^void handle_special_case(int condition) {$/;"	f	typeref:typename:void
+initialize_system	./test.c	/^void initialize_system() {$/;"	f	typeref:typename:void
+log_system_info	./test.c	/^void log_system_info() {$/;"	f	typeref:typename:void
+main	./test.c	/^int main() {$/;"	f	typeref:typename:int
+perform_extra_operations	./test.c	/^void perform_extra_operations(int value) {$/;"	f	typeref:typename:void
+print_log	./test.c	/^void print_log(const char *message) {$/;"	f	typeref:typename:void
+process_password	./test.c	/^void process_password(const char *password) {$/;"	f	typeref:typename:void
+task	./test.c	/^struct task{$/;"	s	file:
+task_passwd	./test.c	/^	char task_passwd[32];$/;"	m	struct:task	typeref:typename:char[32]	file:
+test_mem_leak	./test.c	/^void test_mem_leak(){$/;"	f	typeref:typename:void
+validate_input	./test.c	/^void validate_input(const char *input) {$/;"	f	typeref:typename:void
