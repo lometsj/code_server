@@ -26,8 +26,9 @@ jobs:
         go mod download
 
     - name: Validate GoReleaser config
-      uses: goreleaser/goreleaser-action@v5
+      uses: goreleaser/goreleaser-action@v6
       with:
+        version: '~> v2'
         args: check
         workdir: .
       env:
