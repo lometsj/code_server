@@ -70,8 +70,8 @@ archives:
 
 # Release configuration
 release:
-  github:
-    name: "{{ .ProjectName }} v{{ .Version }}"
+  # github:
+  #   name: "{{ .ProjectName }} v{{ .Version }}"
 
 # Changelog configuration
 changelog:
