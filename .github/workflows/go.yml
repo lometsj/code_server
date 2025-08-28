@@ -30,6 +30,8 @@ jobs:
       with:
         args: check
         workdir: .
+      env:
+        GORELEASER_VERSION: latest
 
     - name: Build Linux packages
       uses: goreleaser/goreleaser-action@v5
@@ -40,3 +42,4 @@ jobs:
         GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
         GOOS: linux
         GOARCH: amd64
+        GORELEASER_VERSION: latest
