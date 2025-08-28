@@ -1,0 +1,92 @@
+# .goreleaser.yml configuration
+# this file is used by goreleaser to build and release the project
+
+version: 2
+
+# the project name
+project_name: task_executor
+
+# Build configuration
+builds:
+  - id: task_executor
+    main: ./cmd/task_executor/task_executer.go
+    binary: task_executer
+    goos:
+      - linux
+    goarch:
+      - amd64
+    ldflags:
+      - -s -w
+
+  - id: code_server
+    main: ./cmd/code_server/main.go
+    binary: code_server
+    goos:
+      - linux
+    goarch:
+      - amd64
+    ldflags:
+      - -s -w
+
+  - id: task_publisher
+    main: ./cmd/task_publisher/task_publisher.go
+    binary: task_publisher
+    goos:
+      - linux
+    goarch:
+      - amd64
+    ldflags:
+      - -s -w
+
+# Archive configuration
+archives:
+  - id: task_executor_package
+    ids:
+      - task_executor
+    name_template: "task_executor_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    formats: tar.gz
+    files:
+      - src: "cmd/task_executor/config.html"
+        dst: "./config.html"
+      - src: "static/config/config.json"
+        dst: "./config.json"
+      - src: "static/**/*"
+        dst: "static"
+      - src: "prompts/**/*"
+        dst: "prompts"
+    wrap_in_directory: true
+
+  - id: code_server_package
+    ids:
+      - code_server
+    name_template: "code_server_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    formats: tar.gz
+
+  - id: task_publisher_package
+    ids:
+      - task_publisher
+    name_template: "task_publisher_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    formats: tar.gz
+
+# Release configuration
+release:
+  github:
+    name: "{{ .ProjectName }} v{{ .Version }}"
+
+# Changelog configuration
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^chore:'
+      - '^ci:'
+      - '^build:'
+      - '^refactor:'
+      - '^style:'
+
+# Checksum configuration
+checksum:
+  name_template: "checksums.txt"
+  algorithm: sha256

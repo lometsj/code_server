@@ -1,0 +1,1667 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>配置管理</title>
+    <script src="/static/vue.global.js"></script>
+    <link rel="stylesheet" href="/static/element-plus.css" />
+    <script src="/static/element-plus.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f5f5f5;
+        }
+        .app-container {
+            height: 100vh;
+        }
+        .sidebar {
+            background-color: #545c64;
+            color: white;
+            height: 100%;
+        }
+        .main-content {
+            padding: 20px;
+            height: 100%;
+            overflow-y: auto;
+        }
+        .config-card {
+            margin-bottom: 20px;
+        }
+        .config-actions {
+            margin-top: 15px;
+            display: flex;
+            gap: 10px;
+        }
+        .default-badge {
+            margin-left: 10px;
+        }
+        .result-item {
+            margin-bottom: 15px;
+            padding: 15px;
+            border: 1px solid #ebeef5;
+            border-radius: 4px;
+            background-color: #fff;
+        }
+        .result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .test-form {
+            max-width: 800px;
+        }
+        .theme-switch {
+            position: relative;
+            margin: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 8px;
+            border-radius: 8px;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .theme-switch .el-radio-button__inner {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.2);
+            color: rgba(255, 255, 255, 0.8);
+        }
+        .theme-switch .el-radio-button__orig-radio:checked + .el-radio-button__inner {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.4);
+            color: #fff;
+            box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.4);
+        }
+        /* 默认主题 */
+        .theme-default {
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        .theme-default .sidebar {
+            background-color: #545c64;
+        }
+        .theme-default .theme-switch {
+            background: rgba(0, 0, 0, 0.1);
+            border-color: rgba(0, 0, 0, 0.1);
+        }
+        .theme-default .theme-switch .el-radio-button__inner {
+            background: rgba(0, 0, 0, 0.05);
+            border-color: rgba(0, 0, 0, 0.1);
+            color: #fff;
+        }
+        .theme-default .theme-switch .el-radio-button__orig-radio:checked + .el-radio-button__inner {
+            background: rgba(0, 0, 0, 0.1);
+            border-color: rgba(0, 0, 0, 0.2);
+            color: #fff;
+            box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.2);
+        }
+        .theme-default .main-content {
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        .theme-default .config-card {
+            background-color: #fff;
+            border-color: #ebeef5;
+        }
+        .theme-default .result-item {
+            background-color: #fff;
+            border-color: #ebeef5;
+        }
+        /* 深色主题 */
+        .theme-dark {
+            background-color: #1a1a1a;
+            color: #ffffff;
+        }
+        .theme-dark .sidebar {
+            background-color: #2c2c2c;
+        }
+        .theme-dark .main-content {
+            background-color: #1a1a1a;
+            color: #ffffff;
+        }
+        .theme-dark .config-card {
+            background-color: #2c2c2c;
+            border-color: #444;
+        }
+        .theme-dark .result-item {
+            background-color: #2c2c2c;
+            border-color: #444;
+        }
+        /* 蓝色主题 */
+        .theme-blue {
+            background-color: #e6f7ff;
+            color: #0050b3;
+        }
+        .theme-blue .sidebar {
+            background-color: #1890ff;
+        }
+        .theme-blue .theme-switch {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+        .theme-blue .theme-switch .el-radio-button__inner {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.2);
+            color: rgba(255, 255, 255, 0.9);
+        }
+        .theme-blue .theme-switch .el-radio-button__orig-radio:checked + .el-radio-button__inner {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.4);
+            color: #fff;
+            box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.4);
+        }
+        .theme-blue .main-content {
+            background-color: #e6f7ff;
+            color: #0050b3;
+        }
+        .theme-blue .config-card {
+            background-color: #fff;
+            border-color: #91d5ff;
+        }
+        .theme-blue .result-item {
+            background-color: #fff;
+            border-color: #91d5ff;
+        }
+        /* 绿色主题 */
+        .theme-green {
+            background-color: #f6ffed;
+            color: #135200;
+        }
+        .theme-green .sidebar {
+            background-color: #52c41a;
+        }
+        .theme-green .theme-switch {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+        .theme-green .theme-switch .el-radio-button__inner {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.2);
+            color: rgba(255, 255, 255, 0.9);
+        }
+        .theme-green .theme-switch .el-radio-button__orig-radio:checked + .el-radio-button__inner {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.4);
+            color: #fff;
+            box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.4);
+        }
+        .theme-green .main-content {
+            background-color: #f6ffed;
+            color: #135200;
+        }
+        .theme-green .config-card {
+            background-color: #fff;
+            border-color: #b7eb8f;
+        }
+        .theme-green .result-item {
+            background-color: #fff;
+            border-color: #b7eb8f;
+        }
+        /* 紫色主题 */
+        .theme-purple {
+            background-color: #f9f0ff;
+            color: #531dab;
+        }
+        .theme-purple .sidebar {
+            background-color: #722ed1;
+        }
+        .theme-purple .theme-switch {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+        .theme-purple .theme-switch .el-radio-button__inner {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.2);
+            color: rgba(255, 255, 255, 0.9);
+        }
+        .theme-purple .theme-switch .el-radio-button__orig-radio:checked + .el-radio-button__inner {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.4);
+            color: #fff;
+            box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.4);
+        }
+        .theme-purple .main-content {
+            background-color: #f9f0ff;
+            color: #531dab;
+        }
+        .theme-purple .config-card {
+            background-color: #fff;
+            border-color: #d3adf7;
+        }
+        .theme-purple .result-item {
+            background-color: #fff;
+            border-color: #d3adf7;
+        }
+        /* 橙色主题 */
+        .theme-orange {
+            background-color: #fff7e6;
+            color: #873800;
+        }
+        .theme-orange .sidebar {
+            background-color: #fa8c16;
+        }
+        .theme-orange .theme-switch {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+        .theme-orange .theme-switch .el-radio-button__inner {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.2);
+            color: rgba(255, 255, 255, 0.9);
+        }
+        .theme-orange .theme-switch .el-radio-button__orig-radio:checked + .el-radio-button__inner {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.4);
+            color: #fff;
+            box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.4);
+        }
+        .theme-orange .main-content {
+            background-color: #fff7e6;
+            color: #d46b08;
+        }
+        .theme-orange .config-card {
+            background-color: #fff;
+            border-color: #ffd591;
+        }
+        .theme-orange .result-item {
+            background-color: #fff;
+            border-color: #ffd591;
+        }
+        /* 通用样式修复 */
+        .sidebar .el-menu {
+            border-right: none;
+        }
+        .sidebar .el-menu-item {
+            border-radius: 4px;
+            margin: 2px 8px;
+        }
+        
+        /* 默认主题菜单激活状态 */
+        .theme-default .sidebar .el-menu-item.is-active {
+            background-color: rgba(255, 255, 255, 0.2) !important;
+        }
+        
+        /* 深色主题菜单激活状态 */
+        .theme-dark .sidebar .el-menu-item.is-active {
+            background-color: rgba(255, 255, 255, 0.15) !important;
+        }
+        
+        /* 蓝色主题菜单激活状态 */
+        .theme-blue .sidebar .el-menu-item.is-active {
+            background-color: rgba(255, 255, 255, 0.2) !important;
+        }
+        
+        /* 绿色主题菜单激活状态 */
+        .theme-green .sidebar .el-menu-item.is-active {
+            background-color: rgba(255, 255, 255, 0.2) !important;
+        }
+        
+        /* 紫色主题菜单激活状态 */
+        .theme-purple .sidebar .el-menu-item.is-active {
+            background-color: rgba(255, 255, 255, 0.2) !important;
+        }
+        
+        /* 橙色主题菜单激活状态 */
+        .theme-orange .sidebar .el-menu-item.is-active {
+            background-color: rgba(255, 255, 255, 0.2) !important;
+        }
+        
+        /* 默认主题菜单悬停状态 */
+        .theme-default .sidebar .el-menu-item:hover {
+            background-color: rgba(255, 255, 255, 0.1) !important;
+        }
+        
+        /* 深色主题菜单悬停状态 */
+        .theme-dark .sidebar .el-menu-item:hover {
+            background-color: rgba(255, 255, 255, 0.08) !important;
+        }
+        
+        /* 蓝色主题菜单悬停状态 */
+        .theme-blue .sidebar .el-menu-item:hover {
+            background-color: rgba(255, 255, 255, 0.1) !important;
+        }
+        
+        /* 绿色主题菜单悬停状态 */
+        .theme-green .sidebar .el-menu-item:hover {
+            background-color: rgba(255, 255, 255, 0.1) !important;
+        }
+        
+        /* 紫色主题菜单悬停状态 */
+        .theme-purple .sidebar .el-menu-item:hover {
+            background-color: rgba(255, 255, 255, 0.1) !important;
+        }
+        
+        /* 橙色主题菜单悬停状态 */
+        .theme-orange .sidebar .el-menu-item:hover {
+            background-color: rgba(255, 255, 255, 0.1) !important;
+        }
+        .theme-switch .el-radio-group {
+            display: flex;
+            flex-direction: row;
+            flex-wrap: wrap;
+            gap: 2px;
+        }
+        .theme-switch .el-radio-button__inner {
+            padding: 4px 8px;
+            font-size: 12px;
+        }
+        .theme-switch .el-radio-button {
+            margin-right: 0;
+        }
+        
+        /* 菜单样式 - 确保高优先级 */
+        .theme-default .sidebar .sidebar-menu,
+        .theme-default .sidebar .sidebar-menu.el-menu {
+            background-color: #545c64 !important;
+        }
+        .theme-default .sidebar .sidebar-menu .el-menu-item {
+            color: #fff !important;
+        }
+        .theme-default .sidebar .sidebar-menu .el-menu-item.is-active {
+            color: #ffd04b !important;
+        }
+        
+        .theme-dark .sidebar .sidebar-menu,
+        .theme-dark .sidebar .sidebar-menu.el-menu {
+            background-color: #2c2c2c !important;
+        }
+        .theme-dark .sidebar .sidebar-menu .el-menu-item {
+            color: #fff !important;
+        }
+        .theme-dark .sidebar .sidebar-menu .el-menu-item.is-active {
+            color: #ffd04b !important;
+        }
+        
+        .theme-blue .sidebar .sidebar-menu,
+        .theme-blue .sidebar .sidebar-menu.el-menu {
+            background-color: #1890ff !important;
+        }
+        .theme-blue .sidebar .sidebar-menu .el-menu-item {
+            color: #fff !important;
+        }
+        .theme-blue .sidebar .sidebar-menu .el-menu-item.is-active {
+            color: #fff !important;
+        }
+        
+        .theme-green .sidebar .sidebar-menu,
+        .theme-green .sidebar .sidebar-menu.el-menu {
+            background-color: #52c41a !important;
+        }
+        .theme-green .sidebar .sidebar-menu .el-menu-item {
+            color: #fff !important;
+        }
+        .theme-green .sidebar .sidebar-menu .el-menu-item.is-active {
+            color: #fff !important;
+        }
+        
+        .theme-purple .sidebar .sidebar-menu,
+        .theme-purple .sidebar .sidebar-menu.el-menu {
+            background-color: #722ed1 !important;
+        }
+        .theme-purple .sidebar .sidebar-menu .el-menu-item {
+            color: #fff !important;
+        }
+        .theme-purple .sidebar .sidebar-menu .el-menu-item.is-active {
+            color: #fff !important;
+        }
+        
+        .theme-orange .sidebar .sidebar-menu,
+        .theme-orange .sidebar .sidebar-menu.el-menu {
+            background-color: #fa8c16 !important;
+        }
+        .theme-orange .sidebar .sidebar-menu .el-menu-item {
+            color: #fff !important;
+        }
+        .theme-orange .sidebar .sidebar-menu .el-menu-item.is-active {
+            color: #fff !important;
+        }
+        
+        /* 重置Element Plus菜单默认样式 */
+        .sidebar .el-menu {
+            border-right: none !important;
+        }
+        .sidebar .el-menu-item {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+        }
+        .sidebar .el-menu-item:hover {
+            background-color: rgba(255, 255, 255, 0.1) !important;
+        }
+        .sidebar .el-menu-item.is-active {
+            background-color: rgba(255, 255, 255, 0.2) !important;
+            border-left: 3px solid #ffd04b !important;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <el-container class="app-container" :class="'theme-' + currentTheme">
+            <el-aside width="200px" class="sidebar">
+                <div class="theme-switch">
+                    <div style="margin-bottom: 4px; font-weight: bold; color: rgba(255, 255, 255, 0.8); font-size: 12px;">主题</div>
+                    <el-radio-group v-model="currentTheme" @change="changeTheme" size="small">
+                        <el-radio-button label="default">默认</el-radio-button>
+                        <el-radio-button label="dark">深色</el-radio-button>
+                        <el-radio-button label="blue">蓝色</el-radio-button>
+                        <el-radio-button label="green">绿色</el-radio-button>
+                        <el-radio-button label="purple">紫色</el-radio-button>
+                        <el-radio-button label="orange">橙色</el-radio-button>
+                    </el-radio-group>
+                </div>
+                <el-menu
+                    :default-active="activeType"
+                    @select="handleTypeChange"
+                    class="sidebar-menu">
+                    <el-menu-item index="llm">
+                        <el-icon><setting /></el-icon>
+                        <span>LLM配置</span>
+                    </el-menu-item>
+                    <el-menu-item index="code_server">
+                        <el-icon><connection /></el-icon>
+                        <span>CodeServer配置</span>
+                    </el-menu-item>
+                    <el-menu-item index="result">
+                        <el-icon><document /></el-icon>
+                        <span>结果管理</span>
+                    </el-menu-item>
+                    <el-menu-item index="test_llm">
+                        <el-icon><cpu /></el-icon>
+                        <span>测试LLM</span>
+                    </el-menu-item>
+                    <el-menu-item index="task_manager">
+                        <el-icon><list /></el-icon>
+                        <span>任务管理</span>
+                    </el-menu-item>
+                    <el-menu-item index="batch_audit">
+                        <el-icon><upload /></el-icon>
+                        <span>批量提交调用点审计</span>
+                    </el-menu-item>
+                    <el-menu-item index="prompt_manager">
+                        <el-icon><document /></el-icon>
+                        <span>批量模式提示词管理</span>
+                    </el-menu-item>
+                </el-menu>
+            </el-aside>
+            
+            <el-main class="main-content">
+                <div v-if="loading" v-loading="loading" style="height: 200px;"></div>
+                
+                <div v-else>
+                    <!-- LLM配置 -->
+                    <div v-if="activeType === 'llm'">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                            <h2>LLM配置管理</h2>
+                            <el-button type="primary" @click="showAddLLMDialog">
+                                <el-icon><plus /></el-icon>添加LLM配置
+                            </el-button>
+                        </div>
+                        
+                        <el-card v-for="config in configs.llm_configs" :key="config.name" class="config-card">
+                            <template #header>
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <span>{{ config.name }}</span>
+                                </div>
+                            </template>
+                            
+                            <el-form label-width="120px">
+                                <el-form-item label="API Key">
+                                    <el-input v-model="config.api_key" type="password" show-password placeholder="请输入API Key" />
+                                </el-form-item>
+                                <el-form-item label="Base URL">
+                                    <el-input v-model="config.base_url" placeholder="请输入Base URL" />
+                                </el-form-item>
+                                <el-form-item label="Model">
+                                    <el-input v-model="config.model" placeholder="请输入Model名称" />
+                                </el-form-item>
+                            </el-form>
+                            
+                            <div class="config-actions">
+                                <el-button type="primary" @click="saveLLMConfig(config)">保存</el-button>
+                                <el-button type="danger" @click="deleteConfig('llm', config.name)">
+                                    删除
+                                </el-button>
+                            </div>
+                        </el-card>
+                    </div>
+                    
+                    <!-- CodeServer配置 -->
+                    <div v-if="activeType === 'code_server'">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                            <h2>CodeServer配置管理</h2>
+                            <el-button type="primary" @click="showAddCodeServerDialog">
+                                <el-icon><plus /></el-icon>添加CodeServer配置
+                            </el-button>
+                        </div>
+                        
+                        <el-card v-for="config in configs.code_servers" :key="config.name" class="config-card">
+                            <template #header>
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <span>{{ config.name }}</span>
+                                </div>
+                            </template>
+                            
+                            <el-form label-width="120px">
+                                <el-form-item label="URL">
+                                    <el-input v-model="config.url" placeholder="请输入CodeServer URL" />
+                                </el-form-item>
+                            </el-form>
+                            
+                            <div class="config-actions">
+                                <el-button type="primary" @click="saveCodeServerConfig(config)">保存</el-button>
+                                <el-button type="danger" @click="deleteConfig('code_server', config.name)">
+                                    删除
+                                </el-button>
+                            </div>
+                        </el-card>
+                    </div>
+                    
+                    <!-- 结果管理 -->
+                    <div v-if="activeType === 'result'">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                            <h2>结果管理</h2>
+                            <div>
+                                <el-button type="primary" @click="refreshResults">
+                                    <el-icon><refresh /></el-icon>刷新
+                                </el-button>
+                            </div>
+                        </div>
+                        
+                        <div v-if="results.length === 0" style="text-align: center; padding: 40px; color: #999;">
+                            暂无结果数据
+                        </div>
+                        
+                        <div v-else>
+                            <div v-for="result in results" :key="result" class="result-item">
+                                <div class="result-header">
+                                    <div style="display: flex; align-items: center; gap: 10px;">
+                                        <strong>{{ result }}</strong>
+                                        <el-tag 
+                                            :type="taskStatuses[result] === true ? 'warning' : 'success'" 
+                                            size="small"
+                                            :loading="taskStatuses[result] === undefined">
+                                            {{ taskStatuses[result] === true ? 'running' : (taskStatuses[result] === false ? 'finished' : 'checking...') }}
+                                        </el-tag>
+                                    </div>
+                                    <div>
+                                        <a :href="`/api/export_result?file=${result}`" download class="el-button el-button--small el-button--primary" style="text-decoration: none; color: white;">
+                                            <el-icon><download /></el-icon>导出
+                                        </a>
+                                        <el-button size="small" type="danger" @click="deleteResult(result)">
+                                            <el-icon><delete /></el-icon>删除
+                                        </el-button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 测试LLM -->
+                    <div v-if="activeType === 'test_llm'">
+                        <h2>测试LLM</h2>
+                        <el-form :model="testForm" label-width="120px" class="test-form">
+                            <el-form-item label="任务ID">
+                                <el-input v-model="testForm.id" placeholder="请输入任务ID（可选，留空自动生成）" />
+                            </el-form-item>
+                            <el-form-item label="System Prompt">
+                                <el-input v-model="testForm.system_prompt" type="textarea" :rows="3" placeholder="请输入系统提示词" />
+                            </el-form-item>
+                            <el-form-item label="User Prompt">
+                                <el-input v-model="testForm.user_prompt" type="textarea" :rows="4" placeholder="请输入用户提示词" />
+                            </el-form-item>
+                            <el-form-item label="Code Server">
+                                <el-select v-model="testForm.code_server_name" placeholder="请选择Code Server配置">
+                                    <el-option 
+                                        v-for="config in configs.code_servers" 
+                                        :key="config.name" 
+                                        :label="config.name" 
+                                        :value="config.name" 
+                                    />
+                                </el-select>
+                            </el-form-item>
+                            <el-form-item label="LLM配置">
+                                <el-select v-model="testForm.llm_config_name" placeholder="请选择LLM配置">
+                                    <el-option 
+                                        v-for="config in configs.llm_configs" 
+                                        :key="config.name" 
+                                        :label="config.name" 
+                                        :value="config.name" 
+                                    />
+                                </el-select>
+                            </el-form-item>
+                            <el-form-item>
+                                <el-button type="primary" @click="submitTestTask" :loading="submitting">
+                                    <el-icon><position /></el-icon>提交任务
+                                </el-button>
+                                <el-button @click="resetTestForm">重置</el-button>
+                            </el-form-item>
+                        </el-form>
+                        
+                        <div v-if="testResult" style="margin-top: 20px;">
+                            <h3>提交结果：</h3>
+                            <el-card>
+                                <pre>{{ JSON.stringify(testResult, null, 2) }}</pre>
+                            </el-card>
+                        </div>
+                    </div>
+                    
+                    <!-- 任务管理 -->
+                    <div v-if="activeType === 'task_manager'">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                            <h2>任务管理</h2>
+                            <div>
+                                <el-button type="primary" @click="refreshTasks">
+                                    <el-icon><refresh /></el-icon>刷新
+                                </el-button>
+                            </div>
+                        </div>
+                        
+                        <!-- 任务统计信息 -->
+                        <el-card style="margin-bottom: 20px;">
+                            <template #header>
+                                <span>任务统计</span>
+                            </template>
+                            <div style="display: flex; gap: 20px;">
+                                <div style="text-align: center; padding: 10px; background-color: #f0f9ff; border-radius: 8px; flex: 1;">
+                                    <div style="font-size: 24px; font-weight: bold; color: #409EFF;">{{ taskStats.task_count || 0 }}</div>
+                                    <div style="color: #666;">当前任务数量</div>
+                                </div>
+                                <div style="text-align: center; padding: 10px; background-color: #f0f9ff; border-radius: 8px; flex: 1;">
+                                    <div style="font-size: 24px; font-weight: bold; color: #67C23A;">{{ taskStats.total || 0 }}</div>
+                                    <div style="color: #666;">总任务数</div>
+                                </div>
+                                <div style="text-align: center; padding: 10px; background-color: #f0f9ff; border-radius: 8px; flex: 1;">
+                                    <div style="font-size: 24px; font-weight: bold; color: #E6A23C;">{{ taskStats.page || 1 }}</div>
+                                    <div style="color: #666;">当前页</div>
+                                </div>
+                            </div>
+                        </el-card>
+                        
+                        <!-- 任务列表 -->
+                        <el-card>
+                            <template #header>
+                                <span>任务列表</span>
+                            </template>
+                            
+                            <div v-if="taskLoading" v-loading="taskLoading" style="height: 200px;"></div>
+                            
+                            <div v-else-if="tasks.length === 0" style="text-align: center; padding: 40px; color: #999;">
+                                暂无任务数据
+                            </div>
+                            
+                            <div v-else>
+                                <el-table :data="tasks" style="width: 100%">
+                                    <el-table-column prop="id" label="任务ID" width="200"></el-table-column>
+                                    <el-table-column prop="code_server_name" label="Code Server" width="150"></el-table-column>
+                                    <el-table-column prop="llm_config_name" label="LLM配置" width="150"></el-table-column>
+                                    <el-table-column label="系统提示词" show-overflow-tooltip>
+                                        <template #default="scope">
+                                            <span>{{ scope.row.system_prompt.substring(0, 50) }}{{ scope.row.system_prompt.length > 50 ? '...' : '' }}</span>
+                                        </template>
+                                    </el-table-column>
+                                    <el-table-column label="用户提示词" show-overflow-tooltip>
+                                        <template #default="scope">
+                                            <span>{{ scope.row.user_prompt.substring(0, 50) }}{{ scope.row.user_prompt.length > 50 ? '...' : '' }}</span>
+                                        </template>
+                                    </el-table-column>
+                                    <el-table-column label="状态" width="100">
+                                        <template #default="scope">
+                                            <el-tag type="warning">运行中</el-tag>
+                                        </template>
+                                    </el-table-column>
+                                </el-table>
+                                
+                                <!-- 分页 -->
+                                <div style="margin-top: 20px; text-align: center;">
+                                    <el-pagination
+                                        @current-change="handlePageChange"
+                                        :current-page="currentPage"
+                                        :page-size="pageSize"
+                                        :total="taskStats.total || 0"
+                                        layout="prev, pager, next, total"
+                                    ></el-pagination>
+                                </div>
+                            </div>
+                        </el-card>
+                    </div>
+                    
+                    <!-- 批量提交调用点审计 -->
+                    <div v-if="activeType === 'batch_audit'">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                            <h2>批量提交调用点审计</h2>
+                        </div>
+                        
+                        <el-card>
+                            <template #header>
+                                <span>批量任务配置</span>
+                            </template>
+                            
+                            <el-form :model="batchForm" label-width="120px">
+                                <el-form-item label="问题类型">
+                                    <el-select v-model="batchForm.problem_type" placeholder="请选择问题类型">
+                                        <el-option 
+                                            v-for="template in promptTemplates" 
+                                            :key="template" 
+                                            :label="template" 
+                                            :value="template" 
+                                        />
+                                    </el-select>
+                                </el-form-item>
+                                <el-form-item label="任务ID">
+                                    <el-input v-model="batchForm.id" placeholder="请输入任务ID（可选，留空自动生成）" />
+                                </el-form-item>
+                                <el-form-item label="函数列表">
+                                    <el-input 
+                                        v-model="batchForm.functions" 
+                                        type="textarea" 
+                                        :rows="4" 
+                                        placeholder="请输入函数列表，每行一个函数名，格式：函数名 或 包名.函数名" 
+                                    />
+                                </el-form-item>
+                                <el-form-item label="Code Server">
+                                    <el-select v-model="batchForm.code_server_name" placeholder="请选择Code Server配置">
+                                        <el-option 
+                                            v-for="config in configs.code_servers" 
+                                            :key="config.name" 
+                                            :label="config.name" 
+                                            :value="config.name" 
+                                        />
+                                    </el-select>
+                                </el-form-item>
+                                <el-form-item label="LLM配置">
+                                    <el-select v-model="batchForm.llm_config_name" placeholder="请选择LLM配置">
+                                        <el-option 
+                                            v-for="config in configs.llm_configs" 
+                                            :key="config.name" 
+                                            :label="config.name" 
+                                            :value="config.name" 
+                                        />
+                                    </el-select>
+                                </el-form-item>
+                                <el-form-item>
+                                    <el-button type="primary" @click="submitBatchTask" :loading="batchSubmitting">
+                                        <el-icon><upload /></el-icon>提交批量任务
+                                    </el-button>
+                                    <el-button @click="resetBatchForm">重置</el-button>
+                                </el-form-item>
+                            </el-form>
+                        </el-card>
+                        
+                        <div v-if="batchResult" style="margin-top: 20px;">
+                            <h3>提交结果：</h3>
+                            <el-card>
+                                <pre>{{ JSON.stringify(batchResult, null, 2) }}</pre>
+                            </el-card>
+                        </div>
+                    </div>
+                    
+                    <!-- 批量模式提示词管理 -->
+                    <div v-if="activeType === 'prompt_manager'">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                            <h2>批量模式提示词管理</h2>
+                            <el-button type="primary" @click="showAddPromptDialog">
+                                <el-icon><plus /></el-icon>新增提示词
+                            </el-button>
+                        </div>
+                        
+                        <el-card>
+                            <template #header>
+                                <span>提示词列表</span>
+                            </template>
+                            
+                            <div v-if="promptLoading" v-loading="promptLoading" style="height: 200px;"></div>
+                            
+                            <div v-else-if="promptList.length === 0" style="text-align: center; padding: 40px; color: #999;">
+                                暂无提示词数据
+                            </div>
+                            
+                            <div v-else>
+                                <el-table :data="promptList" style="width: 100%">
+                                    <el-table-column prop="name" label="提示词名称" width="200"></el-table-column>
+                                    <el-table-column label="系统提示词" show-overflow-tooltip>
+                                        <template #default="scope">
+                                            <span>{{ scope.row.system.substring(0, 50) }}{{ scope.row.system.length > 50 ? '...' : '' }}</span>
+                                        </template>
+                                    </el-table-column>
+                                    <el-table-column label="用户提示词" show-overflow-tooltip>
+                                        <template #default="scope">
+                                            <span>{{ scope.row.init_user.substring(0, 50) }}{{ scope.row.init_user.length > 50 ? '...' : '' }}</span>
+                                        </template>
+                                    </el-table-column>
+                                    <el-table-column label="操作" width="200">
+                                        <template #default="scope">
+                                            <el-button size="small" type="primary" @click="editPrompt(scope.row)">
+                                                <el-icon><edit /></el-icon>编辑
+                                            </el-button>
+                                            <el-button size="small" type="danger" @click="deletePrompt(scope.row)">
+                                                <el-icon><delete /></el-icon>删除
+                                            </el-button>
+                                        </template>
+                                    </el-table-column>
+                                </el-table>
+                            </div>
+                        </el-card>
+                    </div>
+                </div>
+            </el-main>
+        </el-container>
+        
+        <!-- 添加LLM配置对话框 -->
+        <el-dialog v-model="addLLMDialogVisible" title="添加LLM配置" width="500px">
+            <el-form :model="newLLMConfig" label-width="120px">
+                <el-form-item label="名称">
+                    <el-input v-model="newLLMConfig.name" placeholder="请输入配置名称" />
+                </el-form-item>
+                <el-form-item label="API Key">
+                    <el-input v-model="newLLMConfig.api_key" type="password" show-password placeholder="请输入API Key" />
+                </el-form-item>
+                <el-form-item label="Base URL">
+                    <el-input v-model="newLLMConfig.base_url" placeholder="请输入Base URL" />
+                </el-form-item>
+                <el-form-item label="Model">
+                    <el-input v-model="newLLMConfig.model" placeholder="请输入Model名称" />
+                </el-form-item>
+            </el-form>
+            <template #footer>
+                <el-button @click="addLLMDialogVisible = false">取消</el-button>
+                <el-button type="primary" @click="addLLMConfig">确定</el-button>
+            </template>
+        </el-dialog>
+        
+        <!-- 添加CodeServer配置对话框 -->
+        <el-dialog v-model="addCodeServerDialogVisible" title="添加CodeServer配置" width="500px">
+            <el-form :model="newCodeServerConfig" label-width="120px">
+                <el-form-item label="名称">
+                    <el-input v-model="newCodeServerConfig.name" placeholder="请输入配置名称" />
+                </el-form-item>
+                <el-form-item label="URL">
+                    <el-input v-model="newCodeServerConfig.url" placeholder="请输入CodeServer URL" />
+                </el-form-item>
+            </el-form>
+            <template #footer>
+                <el-button @click="addCodeServerDialogVisible = false">取消</el-button>
+                <el-button type="primary" @click="addCodeServerConfig">确定</el-button>
+            </template>
+        </el-dialog>
+        
+        <!-- 添加/编辑提示词对话框 -->
+        <el-dialog v-model="promptDialogVisible" :title="isEditPrompt ? '编辑提示词' : '新增提示词'" width="900px">
+            <el-form :model="currentPrompt" label-width="120px">
+                <el-form-item label="名称">
+                    <el-input v-model="currentPrompt.name" placeholder="请输入提示词名称" />
+                </el-form-item>
+                <el-form-item label="系统提示词">
+                    <el-input v-model="currentPrompt.system" type="textarea" :rows="6" placeholder="请输入系统提示词" />
+                </el-form-item>
+                <el-form-item label="用户提示词">
+                    <el-input v-model="currentPrompt.init_user" type="textarea" :rows="8" placeholder="请输入用户提示词" />
+                </el-form-item>
+            </el-form>
+            <template #footer>
+                <el-button @click="promptDialogVisible = false">取消</el-button>
+                <el-button type="primary" @click="savePrompt">确定</el-button>
+            </template>
+        </el-dialog>
+        
+
+    </div>
+
+    <script>
+        const { createApp, ref } = Vue;
+        const { ElMessage, ElMessageBox } = ElementPlus;
+
+        createApp({
+            setup() {
+                const activeType = ref('llm');
+                const loading = ref(false);
+                const currentTheme = ref('default');
+                const configs = ref({
+                    llm_configs: [],
+                    code_servers: [],
+                    default_llm: '',
+                    default_code_server: ''
+                });
+                
+                const results = ref([]);
+                const testForm = ref({
+                    id: '',
+                    system_prompt: '',
+                    user_prompt: '',
+                    code_server_name: '',
+                    llm_config_name: ''
+                });
+                const testResult = ref(null);
+                const submitting = ref(false);
+                
+                const addLLMDialogVisible = ref(false);
+                const addCodeServerDialogVisible = ref(false);
+                
+                // 任务管理相关数据
+                const taskLoading = ref(false);
+                const tasks = ref([]);
+                const taskStats = ref({});
+                const currentPage = ref(1);
+                const pageSize = ref(10);
+                
+                const newLLMConfig = ref({
+                    name: '',
+                    api_key: '',
+                    base_url: '',
+                    model: ''
+                });
+                
+                const newCodeServerConfig = ref({
+                    name: '',
+                    url: ''
+                });
+                
+                // 批量提交表单
+                const batchForm = ref({
+                    problem_type: '',
+                    id: '',
+                    functions: '',
+                    code_server_name: '',
+                    llm_config_name: ''
+                });
+                
+                const batchResult = ref(null);
+                const batchSubmitting = ref(false);
+                
+                // 可用的prompt模板列表
+                const promptTemplates = ref([]);
+                
+                // 提示词管理相关数据
+                const promptLoading = ref(false);
+                const promptList = ref([]);
+                const promptDialogVisible = ref(false);
+                const isEditPrompt = ref(false);
+                const currentPrompt = ref({
+                    name: '',
+                    system: '',
+                    init_user: ''
+                });
+
+
+                // 获取配置
+                const fetchConfigs = async () => {
+                    loading.value = true;
+                    try {
+                        const response = await fetch('/get_config');
+                        if (!response.ok) {
+                            throw new Error('获取配置失败');
+                        }
+                        const data = await response.json();
+                        configs.value = data;
+                    } catch (error) {
+                        ElMessage.error('获取配置失败: ' + error.message);
+                    } finally {
+                        loading.value = false;
+                    }
+                };
+
+                // 获取结果列表
+                const fetchResults = async () => {
+                    loading.value = true;
+                    try {
+                        const response = await fetch('/api/result_list');
+                        if (!response.ok) {
+                            throw new Error('获取结果列表失败');
+                        }
+                        const data = await response.json();
+                        results.value = data.results || [];
+                    } catch (error) {
+                        ElMessage.error('获取结果列表失败: ' + error.message);
+                    } finally {
+                        loading.value = false;
+                    }
+                };
+
+                const taskStatuses = ref({});
+                
+                // 检查任务状态
+                const checkTaskStatus = async (taskId) => {
+                    try {
+                        // 移除.json扩展名来调用API
+                        const apiTaskId = taskId.replace('.json', '');
+                        const response = await fetch(`/api/task_status?id=${apiTaskId}`);
+                        if (!response.ok) {
+                            throw new Error('检查任务状态失败');
+                        }
+                        const data = await response.json();
+                        // 使用完整的文件名作为key存储状态
+                        taskStatuses.value[taskId] = data.exists;
+                    } catch (error) {
+                        console.error('检查任务状态失败:', error);
+                        taskStatuses.value[taskId] = false;
+                    }
+                };
+                
+                // 检查所有任务状态
+                const checkAllTaskStatuses = async () => {
+                    for (const result of results.value) {
+                        await checkTaskStatus(result); // 使用完整的文件名作为taskId
+                    }
+                };
+                
+                // 刷新结果
+                const refreshResults = async () => {
+                    await fetchResults();
+                    await checkAllTaskStatuses();
+                };
+
+                // 导出单个结果
+                const exportResult = async (result) => {
+                    try {
+                        const response = await fetch(`/api/export_result?file=${result}`);
+                        
+                        if (!response.ok) {
+                            throw new Error('导出失败');
+                        }
+                        
+                        const blob = await response.blob();
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `${result}`;
+                        document.body.appendChild(a);
+                        a.click();
+                        window.URL.revokeObjectURL(url);
+                        document.body.removeChild(a);
+                        
+                        ElMessage.success('导出成功');
+                    } catch (error) {
+                        ElMessage.error('导出失败: ' + error.message);
+                    }
+                };
+
+
+                // 删除结果
+                const deleteResult = async (result) => {
+                    try {
+                        await ElMessageBox.confirm(
+                            `确定要删除结果 "${result}" 吗？`,
+                            '确认删除',
+                            {
+                                confirmButtonText: '确定',
+                                cancelButtonText: '取消',
+                                type: 'warning',
+                            }
+                        );
+                        
+                        const response = await fetch('/api/delete_result?file=' + encodeURIComponent(result), {
+                            method: 'DELETE',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            }
+                        });
+                        
+                        if (!response.ok) {
+                            throw new Error('删除失败');
+                        }
+                        
+                        ElMessage.success('删除成功');
+                        await fetchResults();
+                    } catch (error) {
+                        if (error !== 'cancel') {
+                            ElMessage.error('删除失败: ' + error.message);
+                        }
+                    }
+                };
+
+                // 提交测试任务
+                const submitTestTask = async () => {
+                    if (!testForm.value.system_prompt.trim()) {
+                        ElMessage.error('请输入系统提示词');
+                        return;
+                    }
+                    if (!testForm.value.user_prompt.trim()) {
+                        ElMessage.error('请输入用户提示词');
+                        return;
+                    }
+                    if (!testForm.value.code_server_name) {
+                        ElMessage.error('请选择Code Server配置');
+                        return;
+                    }
+                    if (!testForm.value.llm_config_name) {
+                        ElMessage.error('请选择LLM配置');
+                        return;
+                    }
+                    
+                    submitting.value = true;
+                    try {
+                        const taskData = {
+                            id: testForm.value.id || undefined,
+                            system_prompt: testForm.value.system_prompt,
+                            user_prompt: testForm.value.user_prompt,
+                            code_server_name: testForm.value.code_server_name,
+                            llm_config_name: testForm.value.llm_config_name
+                        };
+                        
+                        const response = await fetch('/api/submit_task', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify(taskData)
+                        });
+                        
+                        if (!response.ok) {
+                            const errorData = await response.json();
+                            throw new Error(errorData.error || '提交失败');
+                        }
+                        
+                        const result = await response.json();
+                        testResult.value = result;
+                        ElMessage.success('任务提交成功，任务ID: ' + result.task_id);
+                    } catch (error) {
+                        ElMessage.error('提交任务失败: ' + error.message);
+                    } finally {
+                        submitting.value = false;
+                    }
+                };
+
+                // 重置测试表单
+                const resetTestForm = () => {
+                    testForm.value = {
+                        id: '',
+                        system_prompt: '',
+                        user_prompt: '',
+                        code_server_name: '',
+                        llm_config_name: ''
+                    };
+                    testResult.value = null;
+                };
+                
+                // 提交批量任务
+                const submitBatchTask = async () => {
+                    if (!batchForm.value.problem_type.trim()) {
+                        ElMessage.error('请输入问题类型');
+                        return;
+                    }
+                    if (!batchForm.value.functions.trim()) {
+                        ElMessage.error('请输入函数列表');
+                        return;
+                    }
+                    if (!batchForm.value.code_server_name) {
+                        ElMessage.error('请选择Code Server配置');
+                        return;
+                    }
+                    if (!batchForm.value.llm_config_name) {
+                        ElMessage.error('请选择LLM配置');
+                        return;
+                    }
+                    
+                    // 解析函数列表
+                    const functionList = batchForm.value.functions
+                        .split('\n')
+                        .map(f => f.trim())
+                        .filter(f => f.length > 0);
+                    
+                    if (functionList.length === 0) {
+                        ElMessage.error('函数列表不能为空');
+                        return;
+                    }
+                    
+                    batchSubmitting.value = true;
+                    try {
+                        const taskData = {
+                            problem_type: batchForm.value.problem_type,
+                            id: batchForm.value.id || undefined,
+                            function: functionList,
+                            code_server: batchForm.value.code_server_name,
+                            llm_config: batchForm.value.llm_config_name
+                        };
+                        
+                        const response = await fetch('/api/submit_batch_task', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify(taskData)
+                        });
+                        
+                        if (!response.ok) {
+                            const errorData = await response.json();
+                            throw new Error(errorData.error || '提交失败');
+                        }
+                        
+                        const result = await response.json();
+                        batchResult.value = result;
+                        ElMessage.success(`批量任务提交成功，共创建 ${result.task_ids ? result.task_ids.length : 0} 个任务`);
+                    } catch (error) {
+                        ElMessage.error('提交批量任务失败: ' + error.message);
+                    } finally {
+                        batchSubmitting.value = false;
+                    }
+                };
+                
+                // 重置批量表单
+                const resetBatchForm = () => {
+                    batchForm.value = {
+                        problem_type: '',
+                        id: '',
+                        functions: '',
+                        code_server_name: '',
+                        llm_config_name: ''
+                    };
+                    batchResult.value = null;
+                };
+
+                // 保存LLM配置
+                const saveLLMConfig = async (config) => {
+                    try {
+                        const response = await fetch('/api/update_llm', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify(config)
+                        });
+                        
+                        if (!response.ok) {
+                            const errorData = await response.json();
+                            throw new Error(errorData.error || '保存失败');
+                        }
+                        
+                        ElMessage.success('LLM配置保存成功');
+                        await fetchConfigs();
+                    } catch (error) {
+                        ElMessage.error('保存LLM配置失败: ' + error.message);
+                    }
+                };
+
+                // 保存CodeServer配置
+                const saveCodeServerConfig = async (config) => {
+                    try {
+                        const response = await fetch('/api/update_code_server', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify(config)
+                        });
+                        
+                        if (!response.ok) {
+                            const errorData = await response.json();
+                            throw new Error(errorData.error || '保存失败');
+                        }
+                        
+                        ElMessage.success('CodeServer配置保存成功');
+                        await fetchConfigs();
+                    } catch (error) {
+                        ElMessage.error('保存CodeServer配置失败: ' + error.message);
+                    }
+                };
+
+                // 删除配置
+                const deleteConfig = async (type, name) => {
+                    try {
+                        await ElMessageBox.confirm(
+                            `确定要删除配置 "${name}" 吗？`,
+                            '确认删除',
+                            {
+                                confirmButtonText: '确定',
+                                cancelButtonText: '取消',
+                                type: 'warning',
+                            }
+                        );
+                        
+                        const response = await fetch('/api/delete_config', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({ type, name })
+                        });
+                        
+                        if (!response.ok) {
+                            const errorData = await response.json();
+                            throw new Error(errorData.error || '删除失败');
+                        }
+                        
+                        ElMessage.success('删除配置成功');
+                        await fetchConfigs();
+                    } catch (error) {
+                        if (error !== 'cancel') {
+                            ElMessage.error('删除配置失败: ' + error.message);
+                        }
+                    }
+                };
+
+                // 添加LLM配置
+                const addLLMConfig = async () => {
+                    if (!newLLMConfig.value.name.trim()) {
+                        ElMessage.error('请输入配置名称');
+                        return;
+                    }
+                    
+                    try {
+                        const response = await fetch('/api/update_llm', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify(newLLMConfig.value)
+                        });
+                        
+                        if (!response.ok) {
+                            const errorData = await response.json();
+                            throw new Error(errorData.error || '添加失败');
+                        }
+                        
+                        ElMessage.success('添加LLM配置成功');
+                        addLLMDialogVisible.value = false;
+                        newLLMConfig.value = { name: '', api_key: '', base_url: '', model: '' };
+                        await fetchConfigs();
+                    } catch (error) {
+                        ElMessage.error('添加LLM配置失败: ' + error.message);
+                    }
+                };
+
+                // 添加CodeServer配置
+                const addCodeServerConfig = async () => {
+                    if (!newCodeServerConfig.value.name.trim()) {
+                        ElMessage.error('请输入配置名称');
+                        return;
+                    }
+                    
+                    try {
+                        const response = await fetch('/api/update_code_server', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify(newCodeServerConfig.value)
+                        });
+                        
+                        if (!response.ok) {
+                            const errorData = await response.json();
+                            throw new Error(errorData.error || '添加失败');
+                        }
+                        
+                        ElMessage.success('添加CodeServer配置成功');
+                        addCodeServerDialogVisible.value = false;
+                        newCodeServerConfig.value = { name: '', url: '' };
+                        await fetchConfigs();
+                    } catch (error) {
+                        ElMessage.error('添加CodeServer配置失败: ' + error.message);
+                    }
+                };
+
+                // 显示添加LLM配置对话框
+                const showAddLLMDialog = () => {
+                    newLLMConfig.value = { name: '', api_key: '', base_url: '', model: '' };
+                    addLLMDialogVisible.value = true;
+                };
+
+                // 显示添加CodeServer配置对话框
+                const showAddCodeServerDialog = () => {
+                    newCodeServerConfig.value = { name: '', url: '' };
+                    addCodeServerDialogVisible.value = true;
+                };
+
+                // 切换配置类型
+                const handleTypeChange = async (type) => {
+                    activeType.value = type;
+                    if (type === 'result') {
+                        await fetchResults();
+                        await checkAllTaskStatuses();
+                    } else if (type === 'task_manager') {
+                        await refreshTasks();
+                    } else if (type === 'prompt_manager') {
+                        await fetchPromptList();
+                    }
+                };
+
+                // 获取任务数量
+                const fetchTaskNum = async () => {
+                    try {
+                        const response = await fetch('/api/task_num');
+                        if (!response.ok) {
+                            throw new Error('获取任务数量失败');
+                        }
+                        const data = await response.json();
+                        taskStats.value = { ...taskStats.value, ...data };
+                    } catch (error) {
+                        ElMessage.error('获取任务数量失败: ' + error.message);
+                    }
+                };
+                
+                // 获取任务列表
+                const fetchTaskList = async () => {
+                    taskLoading.value = true;
+                    try {
+                        const response = await fetch(`/api/task_list?page=${currentPage.value}&limit=${pageSize.value}`);
+                        if (!response.ok) {
+                            throw new Error('获取任务列表失败');
+                        }
+                        const data = await response.json();
+                        tasks.value = data.tasks || [];
+                        taskStats.value = { ...taskStats.value, ...data };
+                    } catch (error) {
+                        ElMessage.error('获取任务列表失败: ' + error.message);
+                    } finally {
+                        taskLoading.value = false;
+                    }
+                };
+                
+                // 刷新任务数据
+                const refreshTasks = async () => {
+                    await fetchTaskNum();
+                    await fetchTaskList();
+                };
+                
+                // 处理分页变化
+                const handlePageChange = async (page) => {
+                    currentPage.value = page;
+                    await fetchTaskList();
+                };
+                
+                // 切换主题
+                const changeTheme = (theme) => {
+                    currentTheme.value = theme;
+                    // 保存主题设置到localStorage
+                    localStorage.setItem('theme', theme);
+                    // 更新body的class
+                    document.body.className = '';
+                    document.body.classList.add('theme-' + theme);
+                };
+
+                // 初始化主题设置
+                const initTheme = () => {
+                    const savedTheme = localStorage.getItem('theme') || 'default';
+                    currentTheme.value = savedTheme;
+                    document.body.className = '';
+                    document.body.classList.add('theme-' + savedTheme);
+                };
+
+                // 获取prompt模板列表
+                const fetchPromptTemplates = async () => {
+                    try {
+                        const response = await fetch('/api/prompt_templates');
+                        if (!response.ok) {
+                            throw new Error('获取模板列表失败');
+                        }
+                        const data = await response.json();
+                        promptTemplates.value = data.templates || [];
+                    } catch (error) {
+                        console.error('获取模板列表失败:', error);
+                        promptTemplates.value = [];
+                    }
+                };
+                
+                // 获取提示词列表
+                const fetchPromptList = async () => {
+                    promptLoading.value = true;
+                    try {
+                        const response = await fetch('/api/prompt_list');
+                        if (!response.ok) {
+                            throw new Error('获取提示词列表失败');
+                        }
+                        const data = await response.json();
+                        promptList.value = data.prompts || [];
+                    } catch (error) {
+                        console.error('获取提示词列表失败:', error);
+                        promptList.value = [];
+                    } finally {
+                        promptLoading.value = false;
+                    }
+                };
+                
+                // 显示新增提示词对话框
+                const showAddPromptDialog = () => {
+                    isEditPrompt.value = false;
+                    currentPrompt.value = {
+                        name: '',
+                        system: '',
+                        init_user: ''
+                    };
+                    promptDialogVisible.value = true;
+                };
+                
+                // 编辑提示词
+                const editPrompt = (prompt) => {
+                    isEditPrompt.value = true;
+                    currentPrompt.value = { ...prompt };
+                    promptDialogVisible.value = true;
+                };
+                
+                // 保存提示词
+                const savePrompt = async () => {
+                    if (!currentPrompt.value.name.trim()) {
+                        ElMessage.error('请输入提示词名称');
+                        return;
+                    }
+                    if (!currentPrompt.value.system.trim()) {
+                        ElMessage.error('请输入系统提示词');
+                        return;
+                    }
+                    if (!currentPrompt.value.init_user.trim()) {
+                        ElMessage.error('请输入用户提示词');
+                        return;
+                    }
+                    
+                    try {
+                        const url = isEditPrompt.value ? '/api/update_prompt' : '/api/create_prompt';
+                        const response = await fetch(url, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify(currentPrompt.value)
+                        });
+                        
+                        if (!response.ok) {
+                            const errorData = await response.json();
+                            throw new Error(errorData.error || '保存失败');
+                        }
+                        
+                        ElMessage.success(isEditPrompt.value ? '提示词更新成功' : '提示词创建成功');
+                        promptDialogVisible.value = false;
+                        await fetchPromptList();
+                        await fetchPromptTemplates(); // 刷新模板列表
+                    } catch (error) {
+                        ElMessage.error('保存提示词失败: ' + error.message);
+                    }
+                };
+                
+                // 删除提示词
+                const deletePrompt = async (prompt) => {
+                    try {
+                        const response = await fetch('/api/delete_prompt', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({ name: prompt.name })
+                        });
+                        
+                        if (!response.ok) {
+                            const errorData = await response.json();
+                            throw new Error(errorData.error || '删除失败');
+                        }
+                        
+                        ElMessage.success('提示词删除成功');
+                        await fetchPromptList();
+                        await fetchPromptTemplates(); // 刷新模板列表
+                    } catch (error) {
+                        ElMessage.error('删除提示词失败: ' + error.message);
+                    }
+                };
+                
+
+                
+                // 初始化
+                fetchConfigs();
+                initTheme();
+                fetchPromptTemplates();
+
+                return {
+                    activeType,
+                    loading,
+                    currentTheme,
+                    changeTheme,
+                    configs,
+                    results,
+                    taskStatuses,
+                    testForm,
+                    testResult,
+                    submitting,
+                    addLLMDialogVisible,
+                    addCodeServerDialogVisible,
+                    newLLMConfig,
+                    newCodeServerConfig,
+                    // 批量提交相关
+                     batchForm,
+                     batchResult,
+                     batchSubmitting,
+                     promptTemplates,
+                    // 任务管理相关
+                    taskLoading,
+                    tasks,
+                    taskStats,
+                    currentPage,
+                    pageSize,
+                    // 提示词管理相关
+                    promptLoading,
+                    promptList,
+                    promptDialogVisible,
+                    isEditPrompt,
+                    currentPrompt,
+
+                    saveLLMConfig,
+                    saveCodeServerConfig,
+                    deleteConfig,
+                    addLLMConfig,
+                    addCodeServerConfig,
+                    showAddLLMDialog,
+                    showAddCodeServerDialog,
+                    handleTypeChange,
+                    refreshResults,
+                    exportResult,
+                    deleteResult,
+                    submitTestTask,
+                    resetTestForm,
+                    checkTaskStatus,
+                    checkAllTaskStatuses,
+                    // 任务管理相关方法
+                    fetchTaskNum,
+                    fetchTaskList,
+                    refreshTasks,
+                    handlePageChange,
+                    // 批量提交相关方法
+                    submitBatchTask,
+                    resetBatchForm,
+                    // 提示词管理相关方法
+                    fetchPromptList,
+                    showAddPromptDialog,
+                    editPrompt,
+                    savePrompt,
+                    deletePrompt,
+
+                };
+            }
+        }).use(ElementPlus).mount('#app');
+    </script>
+</body>
+</html>

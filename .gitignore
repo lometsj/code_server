@@ -1,1 +1,4 @@
 .vscode/*
+dist/*
+test_package/*
+bin/*

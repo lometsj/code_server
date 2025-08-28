@@ -35,8 +35,30 @@ type TaskResult struct {
 	CreatedAt time.Time              `json:"created_at"`
 }
 
-// 结果目录
-const resultDir = "results"
+// 结果目录（相对于程序所在目录）
+var resultDir = "results"
+
+// prompts目录（相对于程序所在目录）
+var promptDir = "prompts"
+
+// 获取程序所在目录
+func getExecutableDir() string {
+	exePath, err := os.Executable()
+	if err != nil {
+		return "."
+	}
+	return filepath.Dir(exePath)
+}
+
+// 获取结果目录的完整路径
+func getResultDir() string {
+	return filepath.Join(getExecutableDir(), resultDir)
+}
+
+// 获取prompts目录的完整路径
+func getPromptDir() string {
+	return filepath.Join(getExecutableDir(), promptDir)
+}
 
 // getConfigHandler 获取当前配置的 HTTP 处理函数
 type CodeServer struct {
@@ -303,14 +325,15 @@ func generateTaskID() string {
 // saveTaskResult 保存任务结果
 func saveTaskResult(taskID string, result map[string]interface{}) error {
 	// 确保results目录存在
-	if err := os.MkdirAll(resultDir, 0755); err != nil {
+	resultPath := getResultDir()
+	if err := os.MkdirAll(resultPath, 0755); err != nil {
 		return err
 	}
 
 	var results []map[string]interface{}
 
 	// 检查是否已有该ID的结果文件
-	filePath := filepath.Join(resultDir, taskID+".json")
+	filePath := filepath.Join(resultPath, taskID+".json")
 	if _, err := os.Stat(filePath); err == nil {
 		// 文件存在，读取现有结果
 		data, err := os.ReadFile(filePath)
@@ -475,7 +498,7 @@ type PromptTemplate struct {
 
 // loadPromptTemplate 从prompt文件夹加载prompt模板
 func loadPromptTemplate(problemType string) (*PromptTemplate, error) {
-	promptPath := filepath.Join("prompts", problemType+".json")
+	promptPath := filepath.Join(getPromptDir(), problemType+".json")
 	data, err := os.ReadFile(promptPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read prompt template for %s: %v", problemType, err)
@@ -997,7 +1020,8 @@ func main() {
 	http.HandleFunc("/api/delete_config", handleDeleteConfig)
 
 	// 添加静态文件路由
-	fs := http.FileServer(http.Dir("static"))
+	staticPath := filepath.Join(getExecutableDir(), "static")
+	fs := http.FileServer(http.Dir(staticPath))
 	http.Handle("/static/", http.StripPrefix("/static/", fs))
 
 	// 启动 HTTP 服务器
@@ -1034,8 +1058,8 @@ func getPromptTemplatesHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 获取prompts文件夹中的模板文件列表
-	promptDir := "prompts"
-	files, err := os.ReadDir(promptDir)
+	promptPath := getPromptDir()
+	files, err := os.ReadDir(promptPath)
 	if err != nil {
 		// 如果文件夹不存在，返回空列表
 		response := map[string]interface{}{
@@ -1078,8 +1102,8 @@ func getPromptListHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 获取prompts文件夹中的所有提示词文件
-	promptDir := "prompts"
-	files, err := os.ReadDir(promptDir)
+	promptPath := getPromptDir()
+	files, err := os.ReadDir(promptPath)
 	if err != nil {
 		// 如果文件夹不存在，返回空列表
 		response := map[string]interface{}{
@@ -1094,7 +1118,7 @@ func getPromptListHandler(w http.ResponseWriter, r *http.Request) {
 	for _, file := range files {
 		if !file.IsDir() && strings.HasSuffix(file.Name(), ".json") {
 			// 读取提示词文件内容
-			filePath := filepath.Join(promptDir, file.Name())
+			filePath := filepath.Join(promptPath, file.Name())
 			data, err := os.ReadFile(filePath)
 			if err != nil {
 				continue
@@ -1143,14 +1167,14 @@ func updatePromptHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 确保prompts文件夹存在
-	promptDir := "prompts"
-	if err := os.MkdirAll(promptDir, 0755); err != nil {
+	promptPath := getPromptDir()
+	if err := os.MkdirAll(promptPath, 0755); err != nil {
 		http.Error(w, "Failed to create prompts directory", http.StatusInternalServerError)
 		return
 	}
 
 	// 创建提示词文件路径
-	filePath := filepath.Join(promptDir, promptInfo.Name+".json")
+	filePath := filepath.Join(promptPath, promptInfo.Name+".json")
 
 	// 检查文件是否存在
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
@@ -1205,14 +1229,14 @@ func createPromptHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 确保prompts文件夹存在
-	promptDir := "prompts"
-	if err := os.MkdirAll(promptDir, 0755); err != nil {
+	promptPath := getPromptDir()
+	if err := os.MkdirAll(promptPath, 0755); err != nil {
 		http.Error(w, "Failed to create prompts directory", http.StatusInternalServerError)
 		return
 	}
 
 	// 创建提示词文件路径
-	filePath := filepath.Join(promptDir, promptInfo.Name+".json")
+	filePath := filepath.Join(promptPath, promptInfo.Name+".json")
 
 	// 检查文件是否已存在
 	if _, err := os.Stat(filePath); err == nil {
@@ -1262,8 +1286,8 @@ func deletePromptHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 构建提示词文件路径
-	promptDir := "prompts"
-	promptFile := filepath.Join(promptDir, deleteRequest.Name+".json")
+	promptPath := getPromptDir()
+	promptFile := filepath.Join(promptPath, deleteRequest.Name+".json")
 
 	// 检查文件是否存在
 	if _, err := os.Stat(promptFile); os.IsNotExist(err) {
