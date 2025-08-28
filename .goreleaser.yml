@@ -50,9 +50,9 @@ archives:
         dst: "./config.html"
       - src: "static/config/config.json"
         dst: "./config.json"
-      - src: "static/**/*"
+      - src: "static/*"
         dst: "static"
-      - src: "prompts/**/*"
+      - src: "prompts/*"
         dst: "prompts"
     wrap_in_directory: true
 
