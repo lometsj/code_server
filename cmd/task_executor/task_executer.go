@@ -458,6 +458,161 @@ func submitTaskHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
+// BatchTaskRequest 批量任务请求结构
+type BatchTaskRequest struct {
+	ProblemType string   `json:"problem_type"`
+	ID          string   `json:"id"`
+	Functions   []string `json:"function"`
+	LLMConfig   string   `json:"llm_config"`
+	CodeServer  string   `json:"code_server"`
+}
+
+// PromptTemplate prompt模板结构
+type PromptTemplate struct {
+	System    string `json:"system"`
+	InitUser  string `json:"init_user"`
+}
+
+// loadPromptTemplate 从prompt文件夹加载prompt模板
+func loadPromptTemplate(problemType string) (*PromptTemplate, error) {
+	promptPath := filepath.Join("prompts", problemType+".json")
+	data, err := os.ReadFile(promptPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read prompt template for %s: %v", problemType, err)
+	}
+
+	var template PromptTemplate
+	if err := json.Unmarshal(data, &template); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal prompt template: %v", err)
+	}
+
+	return &template, nil
+}
+
+// renderPrompt 渲染prompt模板
+func renderPrompt(template *PromptTemplate, functionName, functionContent string) map[string]string {
+	systemPrompt := strings.ReplaceAll(template.System, "{function_name}", functionName)
+	userPrompt := strings.ReplaceAll(template.InitUser, "{function_name}", functionName)
+	userPrompt = strings.ReplaceAll(userPrompt, "{function_content}", functionContent)
+
+	return map[string]string{
+		"system":    systemPrompt,
+		"init_user": userPrompt,
+	}
+}
+
+// submitBatchTaskHandler 批量提交任务的 HTTP 处理函数
+func submitBatchTaskHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var request BatchTaskRequest
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		http.Error(w, "Invalid JSON format", http.StatusBadRequest)
+		return
+	}
+
+	// 验证必要参数
+	if request.ProblemType == "" || len(request.Functions) == 0 || request.LLMConfig == "" || request.CodeServer == "" {
+		http.Error(w, "Missing required parameters", http.StatusBadRequest)
+		return
+	}
+
+	// 加载prompt模板
+	promptTemplate, err := loadPromptTemplate(request.ProblemType)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to load prompt template: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// 获取code server配置
+	var codeServerURL string
+	for _, cs := range dataStore.data.CodeServers {
+		if cs.Name == request.CodeServer {
+			codeServerURL = cs.URL
+			break
+		}
+	}
+
+	if codeServerURL == "" {
+		http.Error(w, "Code server not found", http.StatusBadRequest)
+		return
+	}
+
+	// 初始化代码分析器
+	codeAnalyzer := NewCodeAnalyzer(codeServerURL)
+	if codeAnalyzer == nil {
+		http.Error(w, "Failed to initialize code analyzer", http.StatusInternalServerError)
+		return
+	}
+
+	// 为每个function创建任务
+	var taskIDs []string
+	for _, functionName := range request.Functions {
+		// 查找function的调用点
+		refs, err := codeAnalyzer.FindAllRefs(functionName)
+		if err != nil {
+			fmt.Printf("Failed to find refs for %s: %v\n", functionName, err)
+			continue
+		}
+
+		// 解析JSON响应，获取callers列表
+		var refsData map[string]interface{}
+		if err := json.Unmarshal([]byte(refs), &refsData); err != nil {
+			fmt.Printf("Failed to parse refs JSON for %s: %v\n", functionName, err)
+			continue
+		}
+
+		// 获取callers数组
+		callers, ok := refsData["callers"].([]interface{})
+		if !ok {
+			fmt.Printf("No callers found for %s\n", functionName)
+			continue
+		}
+
+		// 为每个caller创建任务
+		for _, caller := range callers {
+			callerStr, ok := caller.(string)
+			if !ok || strings.TrimSpace(callerStr) == "" {
+				continue
+			}
+
+			// 渲染prompt
+			prompt := renderPrompt(promptTemplate, functionName, callerStr)
+
+			// 创建任务
+			task := Task{
+				ID:             fmt.Sprintf("%s_%s_%d", request.ID, functionName, time.Now().UnixNano()),
+				SystemPrompt:   prompt["system"],
+				UserPrompt:     prompt["init_user"],
+				CodeServerName: request.CodeServer,
+				LLMConfigName:  request.LLMConfig,
+			}
+
+			// 添加到任务列表和队列
+			taskListMutex.Lock()
+			TaskList = append(TaskList, task)
+			taskListMutex.Unlock()
+
+			TaskQueue <- task
+			taskIDs = append(taskIDs, task.ID)
+		}
+	}
+
+	// 返回响应
+	response := map[string]interface{}{
+		"status":   "success",
+		"message":  "Batch tasks submitted",
+		"task_ids": taskIDs,
+		"count":    len(taskIDs),
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
 // getTaskStatusHandler 获取任务状态的 HTTP 处理函数
 func getTaskStatusHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
@@ -823,12 +978,18 @@ func main() {
 
 	// 注册 HTTP 处理函数
 	http.HandleFunc("/api/submit_task", submitTaskHandler)
+	http.HandleFunc("/api/submit_batch_task", submitBatchTaskHandler)
 	http.HandleFunc("/api/task_status", getTaskStatusHandler)
-	http.HandleFunc("/api/task_num", getTaskNumHandler)     // 新增的任务数量接口
-	http.HandleFunc("/api/task_list", getTaskListHandler)    // 新增的任务列表接口
+	http.HandleFunc("/api/task_num", getTaskNumHandler)   // 新增的任务数量接口
+	http.HandleFunc("/api/task_list", getTaskListHandler) // 新增的任务列表接口
 	http.HandleFunc("/api/result_list", getResultListHandler)
 	http.HandleFunc("/api/export_result", exportResultHandler)
 	http.HandleFunc("/api/delete_result", deleteResultHandler)
+	http.HandleFunc("/api/prompt_templates", getPromptTemplatesHandler) // 新增的prompt模板列表接口
+	http.HandleFunc("/api/prompt_list", getPromptListHandler)             // 新增的提示词列表接口
+	http.HandleFunc("/api/update_prompt", updatePromptHandler)           // 新增的更新提示词接口
+	http.HandleFunc("/api/create_prompt", createPromptHandler)           // 新增的创建提示词接口
+	http.HandleFunc("/api/delete_prompt", deletePromptHandler)           // 新增的删除提示词接口
 	http.HandleFunc("/config", configPageHandler)
 	http.HandleFunc("/get_config", handleGetConfig)
 	http.HandleFunc("/api/update_llm", handleUpdateLLM)
@@ -859,6 +1020,265 @@ func getTaskNumHandler(w http.ResponseWriter, r *http.Request) {
 
 	response := map[string]interface{}{
 		"task_count": taskCount,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+// getPromptTemplatesHandler 获取prompt模板列表的 HTTP 处理函数
+func getPromptTemplatesHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// 获取prompts文件夹中的模板文件列表
+	promptDir := "prompts"
+	files, err := os.ReadDir(promptDir)
+	if err != nil {
+		// 如果文件夹不存在，返回空列表
+		response := map[string]interface{}{
+			"templates": []string{},
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	var templates []string
+	for _, file := range files {
+		if !file.IsDir() && strings.HasSuffix(file.Name(), ".json") {
+			// 移除.json后缀
+			templateName := strings.TrimSuffix(file.Name(), ".json")
+			templates = append(templates, templateName)
+		}
+	}
+
+	response := map[string]interface{}{
+		"templates": templates,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+// PromptInfo 提示词信息结构
+type PromptInfo struct {
+	Name     string `json:"name"`
+	System   string `json:"system"`
+	InitUser string `json:"init_user"`
+}
+
+// getPromptListHandler 获取提示词列表的 HTTP 处理函数
+func getPromptListHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// 获取prompts文件夹中的所有提示词文件
+	promptDir := "prompts"
+	files, err := os.ReadDir(promptDir)
+	if err != nil {
+		// 如果文件夹不存在，返回空列表
+		response := map[string]interface{}{
+			"prompts": []PromptInfo{},
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
+	var prompts []PromptInfo
+	for _, file := range files {
+		if !file.IsDir() && strings.HasSuffix(file.Name(), ".json") {
+			// 读取提示词文件内容
+			filePath := filepath.Join(promptDir, file.Name())
+			data, err := os.ReadFile(filePath)
+			if err != nil {
+				continue
+			}
+
+			var prompt PromptTemplate
+			if err := json.Unmarshal(data, &prompt); err != nil {
+				continue
+			}
+
+			// 移除.json后缀作为名称
+			name := strings.TrimSuffix(file.Name(), ".json")
+			prompts = append(prompts, PromptInfo{
+				Name:     name,
+				System:   prompt.System,
+				InitUser: prompt.InitUser,
+			})
+		}
+	}
+
+	response := map[string]interface{}{
+		"prompts": prompts,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+// updatePromptHandler 更新提示词的 HTTP 处理函数
+func updatePromptHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var promptInfo PromptInfo
+	if err := json.NewDecoder(r.Body).Decode(&promptInfo); err != nil {
+		http.Error(w, "Invalid JSON format", http.StatusBadRequest)
+		return
+	}
+
+	// 验证必要参数
+	if promptInfo.Name == "" || promptInfo.System == "" || promptInfo.InitUser == "" {
+		http.Error(w, "Missing required parameters", http.StatusBadRequest)
+		return
+	}
+
+	// 确保prompts文件夹存在
+	promptDir := "prompts"
+	if err := os.MkdirAll(promptDir, 0755); err != nil {
+		http.Error(w, "Failed to create prompts directory", http.StatusInternalServerError)
+		return
+	}
+
+	// 创建提示词文件路径
+	filePath := filepath.Join(promptDir, promptInfo.Name+".json")
+
+	// 检查文件是否存在
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		http.Error(w, "Prompt not found", http.StatusNotFound)
+		return
+	}
+
+	// 创建提示词模板
+	promptTemplate := PromptTemplate{
+		System:    promptInfo.System,
+		InitUser:  promptInfo.InitUser,
+	}
+
+	// 保存到文件
+	data, err := json.MarshalIndent(promptTemplate, "", "  ")
+	if err != nil {
+		http.Error(w, "Failed to marshal prompt data", http.StatusInternalServerError)
+		return
+	}
+
+	if err := os.WriteFile(filePath, data, 0644); err != nil {
+		http.Error(w, "Failed to save prompt file", http.StatusInternalServerError)
+		return
+	}
+
+	response := map[string]string{
+		"status":  "success",
+		"message": "Prompt updated successfully",
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+// createPromptHandler 创建提示词的 HTTP 处理函数
+func createPromptHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var promptInfo PromptInfo
+	if err := json.NewDecoder(r.Body).Decode(&promptInfo); err != nil {
+		http.Error(w, "Invalid JSON format", http.StatusBadRequest)
+		return
+	}
+
+	// 验证必要参数
+	if promptInfo.Name == "" || promptInfo.System == "" || promptInfo.InitUser == "" {
+		http.Error(w, "Missing required parameters", http.StatusBadRequest)
+		return
+	}
+
+	// 确保prompts文件夹存在
+	promptDir := "prompts"
+	if err := os.MkdirAll(promptDir, 0755); err != nil {
+		http.Error(w, "Failed to create prompts directory", http.StatusInternalServerError)
+		return
+	}
+
+	// 创建提示词文件路径
+	filePath := filepath.Join(promptDir, promptInfo.Name+".json")
+
+	// 检查文件是否已存在
+	if _, err := os.Stat(filePath); err == nil {
+		http.Error(w, "Prompt already exists", http.StatusConflict)
+		return
+	}
+
+	// 创建提示词模板
+	promptTemplate := PromptTemplate{
+		System:    promptInfo.System,
+		InitUser:  promptInfo.InitUser,
+	}
+
+	// 保存到文件
+	data, err := json.MarshalIndent(promptTemplate, "", "  ")
+	if err != nil {
+		http.Error(w, "Failed to marshal prompt data", http.StatusInternalServerError)
+		return
+	}
+
+	if err := os.WriteFile(filePath, data, 0644); err != nil {
+		http.Error(w, "Failed to save prompt file", http.StatusInternalServerError)
+		return
+	}
+
+	response := map[string]string{
+		"status":  "success",
+		"message": "Prompt created successfully",
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+func deletePromptHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var deleteRequest struct {
+		Name string `json:"name"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&deleteRequest); err != nil {
+		http.Error(w, `{"error":"无效请求格式"}`, http.StatusBadRequest)
+		return
+	}
+
+	// 构建提示词文件路径
+	promptDir := "prompts"
+	promptFile := filepath.Join(promptDir, deleteRequest.Name+".json")
+
+	// 检查文件是否存在
+	if _, err := os.Stat(promptFile); os.IsNotExist(err) {
+		http.Error(w, `{"error":"提示词不存在"}`, http.StatusBadRequest)
+		return
+	}
+
+	// 删除提示词文件
+	if err := os.Remove(promptFile); err != nil {
+		http.Error(w, `{"error":"删除提示词文件失败"}`, http.StatusInternalServerError)
+		return
+	}
+
+	response := map[string]interface{}{
+		"message": "提示词删除成功",
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -899,7 +1319,7 @@ func getTaskListHandler(w http.ResponseWriter, r *http.Request) {
 	// 获取任务列表
 	taskListMutex.Lock()
 	totalTasks := len(TaskList)
-	
+
 	// 确保偏移量不超过任务总数
 	if offset >= totalTasks {
 		offset = totalTasks
