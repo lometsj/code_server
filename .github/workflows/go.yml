@@ -30,17 +30,11 @@ jobs:
       with:
         version: '~> v2'
         args: check
-        workdir: .
-      env:
-        GORELEASER_VERSION: latest
 
-    - name: Build Linux packages
-      uses: goreleaser/goreleaser-action@v5
+    - name: Build & Release
+      uses: goreleaser/goreleaser-action@v6   
       with:
+        version: '~> v2'                      
         args: release --clean
-        workdir: .
       env:
-        GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
-        GOOS: linux
-        GOARCH: amd64
-        GORELEASER_VERSION: latest
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
