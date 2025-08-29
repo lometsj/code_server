@@ -137,14 +137,9 @@ func (ca *CodeAnalyzer) getRefCalleeContent(filePath string, lineNum int) (strin
 			continue
 		}
 		//解析line和end为数字
-		symLine, err := strconv.Atoi(symDict["line"].(string))
-		if err != nil {
-			continue
-		}
-		symEnd, err := strconv.Atoi(symDict["end"].(string))
-		if err != nil {
-			continue
-		}
+		symLine := int(symDict["line"].(float64))
+
+		symEnd := int(symDict["end"].(float64))
 
 		if lineNum > symLine && symEnd > lineNum {
 			return ca.getCodeContent(filePath, symLine, symEnd)
