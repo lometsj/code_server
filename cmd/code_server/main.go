@@ -129,15 +129,33 @@ func (ca *CodeAnalyzer) getRefCalleeContent(filePath string, lineNum int) (strin
 			continue
 		}
 
-		symLine := int(symDict["line"].(float64))
-		symEnd := int(symDict["end"].(float64))
+		//检查是否有line和end
+		if _, ok := symDict["line"]; !ok {
+			continue
+		}
+		if _, ok := symDict["end"]; !ok {
+			continue
+		}
+		//解析line和end为数字
+		symLine, err := strconv.Atoi(symDict["line"].(string))
+		if err != nil {
+			continue
+		}
+		symEnd, err := strconv.Atoi(symDict["end"].(string))
+		if err != nil {
+			continue
+		}
 
 		if lineNum > symLine && symEnd > lineNum {
 			return ca.getCodeContent(filePath, symLine, symEnd)
 		}
 	}
 
-	return "", nil
+	//如果没有找到，返回这个文件:行号前50行代码
+	if lineNum < 50 {
+		return ca.getCodeContent(filePath, 1, lineNum)
+	}
+	return ca.getCodeContent(filePath, lineNum-50, lineNum)
 }
 
 func (ca *CodeAnalyzer) GetSymbolInfo(symbol string) SymbolResponse {
