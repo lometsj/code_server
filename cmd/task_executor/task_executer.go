@@ -315,7 +315,7 @@ func (la *LLMAnalyzer) AnalyzeTask(codeAnalyzer *CodeAnalyzer, problemPrompt map
 }
 
 // TaskQueue 任务队列
-var TaskQueue = make(chan Task, 100)
+var TaskQueue = make(chan Task, 2000)
 
 // generateTaskID 生成任务ID
 func generateTaskID() string {
@@ -492,8 +492,8 @@ type BatchTaskRequest struct {
 
 // PromptTemplate prompt模板结构
 type PromptTemplate struct {
-	System    string `json:"system"`
-	InitUser  string `json:"init_user"`
+	System   string `json:"system"`
+	InitUser string `json:"init_user"`
 }
 
 // loadPromptTemplate 从prompt文件夹加载prompt模板
@@ -607,7 +607,7 @@ func submitBatchTaskHandler(w http.ResponseWriter, r *http.Request) {
 
 			// 创建任务
 			task := Task{
-				ID:             fmt.Sprintf("%s_%s_%d", request.ID, functionName, time.Now().UnixNano()),
+				ID:             request.ID,
 				SystemPrompt:   prompt["system"],
 				UserPrompt:     prompt["init_user"],
 				CodeServerName: request.CodeServer,
@@ -1009,10 +1009,10 @@ func main() {
 	http.HandleFunc("/api/export_result", exportResultHandler)
 	http.HandleFunc("/api/delete_result", deleteResultHandler)
 	http.HandleFunc("/api/prompt_templates", getPromptTemplatesHandler) // 新增的prompt模板列表接口
-	http.HandleFunc("/api/prompt_list", getPromptListHandler)             // 新增的提示词列表接口
-	http.HandleFunc("/api/update_prompt", updatePromptHandler)           // 新增的更新提示词接口
-	http.HandleFunc("/api/create_prompt", createPromptHandler)           // 新增的创建提示词接口
-	http.HandleFunc("/api/delete_prompt", deletePromptHandler)           // 新增的删除提示词接口
+	http.HandleFunc("/api/prompt_list", getPromptListHandler)           // 新增的提示词列表接口
+	http.HandleFunc("/api/update_prompt", updatePromptHandler)          // 新增的更新提示词接口
+	http.HandleFunc("/api/create_prompt", createPromptHandler)          // 新增的创建提示词接口
+	http.HandleFunc("/api/delete_prompt", deletePromptHandler)          // 新增的删除提示词接口
 	http.HandleFunc("/config", configPageHandler)
 	http.HandleFunc("/get_config", handleGetConfig)
 	http.HandleFunc("/api/update_llm", handleUpdateLLM)
@@ -1184,8 +1184,8 @@ func updatePromptHandler(w http.ResponseWriter, r *http.Request) {
 
 	// 创建提示词模板
 	promptTemplate := PromptTemplate{
-		System:    promptInfo.System,
-		InitUser:  promptInfo.InitUser,
+		System:   promptInfo.System,
+		InitUser: promptInfo.InitUser,
 	}
 
 	// 保存到文件
@@ -1246,8 +1246,8 @@ func createPromptHandler(w http.ResponseWriter, r *http.Request) {
 
 	// 创建提示词模板
 	promptTemplate := PromptTemplate{
-		System:    promptInfo.System,
-		InitUser:  promptInfo.InitUser,
+		System:   promptInfo.System,
+		InitUser: promptInfo.InitUser,
 	}
 
 	// 保存到文件
