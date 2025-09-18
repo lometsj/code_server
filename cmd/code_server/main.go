@@ -163,12 +163,12 @@ func (ca *CodeAnalyzer) getRefCalleeContent(filePath string, lineNum int) (strin
 func (ca *CodeAnalyzer) addLineNumbers(content string, startLine int) string {
 	lines := strings.Split(content, "\n")
 	var numberedLines []string
-	
+
 	for i, line := range lines {
 		lineNum := startLine + i
 		numberedLines = append(numberedLines, fmt.Sprintf("%d: %s", lineNum, line))
 	}
-	
+
 	return strings.Join(numberedLines, "\n")
 }
 
@@ -346,7 +346,7 @@ func (ca *CodeAnalyzer) FindAllRefs(symbol string) RefResponse {
 		if callerContent != "" && !seen[callerContent] {
 			// 添加行号到内容中
 			callerContentWithLineNumbers := ca.addLineNumbers(callerContent, lineNum)
-			
+
 			callersContent = append(callersContent, RefInfo{
 				Content: callerContentWithLineNumbers,
 				File:    filePath,
@@ -454,6 +454,11 @@ func main() {
 	// 设置路由
 	http.HandleFunc("/api/get_symbol", server.getSymbolHandler)
 	http.HandleFunc("/api/find_refs", server.findRefsHandler)
+	//健康检查
+	http.HandleFunc("/api/health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("OK"))
+	})
 
 	log.Printf("Starting server on %s", *listenAddr)
 	log.Printf("Code directory: %s", *codeDir)
