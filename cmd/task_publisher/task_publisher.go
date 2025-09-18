@@ -219,9 +219,15 @@ type SymbolResponse struct {
 }
 
 // RefResponse 引用响应
+type RefInfo struct {
+	Content string `json:"content"`
+	File    string `json:"file"`
+	Line    int    `json:"line"`
+}
+
 type RefResponse struct {
-	Callers []string `json:"callers"`
-	Error   string   `json:"error,omitempty"`
+	Callers []RefInfo `json:"callers"`
+	Error   string    `json:"error,omitempty"`
 }
 
 // GetSymbolInfo 获取符号信息
@@ -255,32 +261,37 @@ func (csc *CodeServerClient) GetSymbolInfo(symbol string) error {
 }
 
 // FindAllRefs 获取所有引用
-func (csc *CodeServerClient) FindAllRefs(symbol string) error {
+func (csc *CodeServerClient) FindAllRefs(symbol string) (*RefResponse, error) {
 	reqBody := map[string]string{
 		"symbol": symbol,
 	}
 	jsonData, err := json.Marshal(reqBody)
 	if err != nil {
-		return fmt.Errorf("failed to marshal request: %v", err)
+		return nil, fmt.Errorf("failed to marshal request: %v", err)
 	}
 
 	url := fmt.Sprintf("%s/api/find_refs", csc.BaseURL)
 	resp, err := csc.HTTPClient.Post(url, "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
-		return fmt.Errorf("failed to find refs: %v", err)
+		return nil, fmt.Errorf("failed to find refs: %v", err)
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return fmt.Errorf("failed to read response: %v", err)
+		return nil, fmt.Errorf("failed to read response: %v", err)
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("find refs failed with status %d: %s", resp.StatusCode, string(body))
+		return nil, fmt.Errorf("find refs failed with status %d: %s", resp.StatusCode, string(body))
 	}
-	fmt.Print(string(body))
-	return nil
+
+	var refResp RefResponse
+	if err := json.Unmarshal(body, &refResp); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal response: %v", err)
+	}
+
+	return &refResp, nil
 }
 
 // BatchTaskPublisher 批量任务发布器
@@ -559,11 +570,19 @@ func main() {
 		codeServerClient := NewCodeServerClient(codeServerURL)
 
 		// 获取所有引用
-		err = codeServerClient.FindAllRefs(symbolName)
+		refResp, err := codeServerClient.FindAllRefs(symbolName)
 		if err != nil {
 			fmt.Printf("Error finding refs: %v\n", err)
 			os.Exit(1)
 		}
+
+		// 输出结果
+		jsonData, err := json.MarshalIndent(refResp, "", "  ")
+		if err != nil {
+			fmt.Printf("Error marshaling response: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Print(string(jsonData))
 
 	default:
 		fmt.Printf("Error: unknown subcommand '%s'\n", subcommand)

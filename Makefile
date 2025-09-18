@@ -2,6 +2,7 @@
 SERVER_BIN := bin/code_server
 PUBLISHER_BIN := bin/task_publisher
 EXECUTER_BIN := bin/task_executer
+TAG_INIT_BIN := bin/tag_init
 CONFIG_HTML := cmd/task_executor/config.html
 COPIED_HTML := $(dir $(EXECUTER_BIN))/config.html
 
@@ -11,7 +12,10 @@ PACKAGE_DIR := dist/$(PACKAGE_NAME)
 TARBALL_NAME := $(PACKAGE_NAME).tar.gz
 
 # 默认目标
-all: $(SERVER_BIN) $(PUBLISHER_BIN) $(EXECUTER_BIN) $(COPIED_HTML)
+all: $(SERVER_BIN) $(PUBLISHER_BIN) $(EXECUTER_BIN) $(TAG_INIT_BIN) $(COPIED_HTML)
+
+# 构建tag_init二进制文件
+tag_init: $(TAG_INIT_BIN)
 
 # 创建输出目录
 $(shell mkdir -p bin/server bin/publisher bin/executer dist)
@@ -29,6 +33,11 @@ $(EXECUTER_BIN): cmd/task_executor/task_executer.go
 	go build -o $(EXECUTER_BIN) ./cmd/task_executor
 	@mkdir -p $(dir $(EXECUTER_BIN))
 
+# 构建 tag_init
+$(TAG_INIT_BIN): cmd/tag_init/main.go
+	go build -o $(TAG_INIT_BIN) ./cmd/tag_init
+	@mkdir -p $(dir $(TAG_INIT_BIN))
+
 # 复制html文件
 $(COPIED_HTML): $(CONFIG_HTML)
 	@mkdir -p $(dir $(COPIED_HTML))
@@ -40,11 +49,21 @@ debug: cmd/task_executor/task_executer.go
 	@mkdir -p $(dir $(EXECUTER_BIN))
 	@cp $(CONFIG_HTML) $(COPIED_HTML)
 
+# tag_init调试模式构建（包含调试信息）
+debug-tag-init: cmd/tag_init/main.go
+	go build -gcflags="all=-N -l" -o $(TAG_INIT_BIN) ./cmd/tag_init
+	@mkdir -p $(dir $(TAG_INIT_BIN))
+
 # 生产模式构建（优化编译）
 release: cmd/task_executor/task_executer.go
 	go build -ldflags="-s -w" -o $(EXECUTER_BIN) ./cmd/task_executor
 	@mkdir -p $(dir $(EXECUTER_BIN))
 	@cp $(CONFIG_HTML) $(COPIED_HTML)
+
+# tag_init生产模式构建（优化编译）
+release-tag-init: cmd/tag_init/main.go
+	go build -ldflags="-s -w" -o $(TAG_INIT_BIN) ./cmd/tag_init
+	@mkdir -p $(dir $(TAG_INIT_BIN))
 
 # 准备打包目录
 prepare-package: $(EXECUTER_BIN) $(COPIED_HTML)
@@ -88,4 +107,4 @@ test-package: package
 	@cd test_package/$(PACKAGE_NAME) && ls -la
 	@echo "Package test completed. Clean up with: rm -rf test_package"
 
-.PHONY: all clean install debug release package prepare-package debug-run release-run test-package
+.PHONY: all clean install debug release package prepare-package debug-run release-run test-package debug-tag-init release-tag-init tag_init

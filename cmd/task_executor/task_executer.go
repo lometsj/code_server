@@ -139,21 +139,40 @@ func (ca *CodeAnalyzer) GetSymbolInfo(symbol string) (string, error) {
 	return string(body), nil
 }
 
+// RefInfo 引用信息
+type RefInfo struct {
+	Content string `json:"content"`
+	File    string `json:"file"`
+	Line    int    `json:"line"`
+}
+
+// RefResponse 引用响应
+type RefResponse struct {
+	Callers []RefInfo `json:"callers"`
+	Error   string    `json:"error"`
+}
+
 // FindAllRefs 查找所有引用
-func (ca *CodeAnalyzer) FindAllRefs(symbol string) (string, error) {
+func (ca *CodeAnalyzer) FindAllRefs(symbol string) (*RefResponse, error) {
 	url := fmt.Sprintf("%s/api/find_refs", ca.ServerURL)
 	data := map[string]string{"symbol": symbol}
 	json_data, _ := json.Marshal(data)
 
 	resp, err := http.Post(url, "application/json", bytes.NewBuffer(json_data))
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	defer resp.Body.Close()
 
 	body, _ := io.ReadAll(resp.Body)
-
-	return string(body), nil
+	
+	var refResp RefResponse
+	err = json.Unmarshal(body, &refResp)
+	if err != nil {
+		return nil, err
+	}
+	
+	return &refResp, nil
 }
 
 // LLMAnalyzer LLM分析器
@@ -288,12 +307,16 @@ func (la *LLMAnalyzer) AnalyzeTask(codeAnalyzer *CodeAnalyzer, problemPrompt map
 										}
 										messages = append(messages, Message{Role: "user", Content: info})
 									case "find_refs":
-										refs, err := codeAnalyzer.FindAllRefs(symName)
+										refResp, err := codeAnalyzer.FindAllRefs(symName)
 										if err != nil {
 											//todo
 											return nil, err
 										}
-										messages = append(messages, Message{Role: "user", Content: refs})
+										refs, err := json.Marshal(refResp)
+										if err != nil {
+											return nil, err
+										}
+										messages = append(messages, Message{Role: "user", Content: string(refs)})
 									}
 								}
 							}
@@ -575,22 +598,31 @@ func submitBatchTaskHandler(w http.ResponseWriter, r *http.Request) {
 	var taskIDs []string
 	for _, functionName := range request.Functions {
 		// 查找function的调用点
-		refs, err := codeAnalyzer.FindAllRefs(functionName)
+		refResp, err := codeAnalyzer.FindAllRefs(functionName)
 		if err != nil {
 			fmt.Printf("Failed to find refs for %s: %v\n", functionName, err)
 			continue
 		}
 
-		// 解析JSON响应，获取callers列表
-		var refsData map[string]interface{}
-		if err := json.Unmarshal([]byte(refs), &refsData); err != nil {
-			fmt.Printf("Failed to parse refs JSON for %s: %v\n", functionName, err)
+		// 获取callers数组
+		if refResp.Error != "" {
+			fmt.Printf("Error in ref response for %s: %s\n", functionName, refResp.Error)
 			continue
 		}
 
-		// 获取callers数组
-		callers, ok := refsData["callers"].([]interface{})
-		if !ok {
+		// 将RefInfo转换为字符串切片
+		callers := make([]interface{}, len(refResp.Callers))
+		for i, refInfo := range refResp.Callers {
+			// 将RefInfo转换为JSON字符串
+			refBytes, err := json.Marshal(refInfo)
+			if err != nil {
+				fmt.Printf("Failed to marshal ref info for %s: %v\n", functionName, err)
+				continue
+			}
+			callers[i] = string(refBytes)
+		}
+
+		if len(callers) == 0 {
 			fmt.Printf("No callers found for %s\n", functionName)
 			continue
 		}

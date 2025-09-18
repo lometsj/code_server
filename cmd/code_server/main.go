@@ -32,9 +32,15 @@ type SymbolResponse struct {
 	Error   string       `json:"error,omitempty"`
 }
 
+type RefInfo struct {
+	Content string `json:"content"`
+	File    string `json:"file"`
+	Line    int    `json:"line"`
+}
+
 type RefResponse struct {
-	Callers []string `json:"callers"`
-	Error   string   `json:"error,omitempty"`
+	Callers []RefInfo `json:"callers"`
+	Error   string    `json:"error,omitempty"`
 }
 
 type CodeAnalyzer struct {
@@ -151,6 +157,19 @@ func (ca *CodeAnalyzer) getRefCalleeContent(filePath string, lineNum int) (strin
 		return ca.getCodeContent(filePath, 1, lineNum)
 	}
 	return ca.getCodeContent(filePath, lineNum-50, lineNum)
+}
+
+// addLineNumbers 在代码内容中添加行号
+func (ca *CodeAnalyzer) addLineNumbers(content string, startLine int) string {
+	lines := strings.Split(content, "\n")
+	var numberedLines []string
+	
+	for i, line := range lines {
+		lineNum := startLine + i
+		numberedLines = append(numberedLines, fmt.Sprintf("%d: %s", lineNum, line))
+	}
+	
+	return strings.Join(numberedLines, "\n")
 }
 
 func (ca *CodeAnalyzer) GetSymbolInfo(symbol string) SymbolResponse {
@@ -294,7 +313,7 @@ func (ca *CodeAnalyzer) FindAllRefs(symbol string) RefResponse {
 		return response
 	}
 
-	var callersContent []string
+	var callersContent []RefInfo
 	seen := make(map[string]bool)
 
 	for _, line := range lines {
@@ -325,7 +344,14 @@ func (ca *CodeAnalyzer) FindAllRefs(symbol string) RefResponse {
 		}
 
 		if callerContent != "" && !seen[callerContent] {
-			callersContent = append(callersContent, callerContent)
+			// 添加行号到内容中
+			callerContentWithLineNumbers := ca.addLineNumbers(callerContent, lineNum)
+			
+			callersContent = append(callersContent, RefInfo{
+				Content: callerContentWithLineNumbers,
+				File:    filePath,
+				Line:    lineNum,
+			})
 			seen[callerContent] = true
 		}
 	}
